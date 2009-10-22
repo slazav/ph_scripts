@@ -1,193 +1,162 @@
-#!/usr/bin/perl -w
-use strict;
+#!/bin/sh -efu
 
-my $use_js = 1;
+. shell-error
 
-# открываем указанный файл, находим соответствующую ему директорию:
 
-my $oldph = 0; # оставить ли неизменными все фотографии
+##################################################
 
-if (($#ARGV>-1) && ($ARGV[0] eq "-o")) {
-  shift @ARGV;
-  $oldph = 1;
+PROG="${0##*/}"
+
+show_help()
+{
+  cat <<EOF
+
+$PROG - photoalbum creation
+
+Usage: $PROG infile outfile
+
+Options:
+    -h         display help screen
+    -v         be more verbose
+    -s         don't update files
+
+Input file syntax:
+
+\photo  <file> <title>
+\photor <file> <title>
+\photol <file> <title>
+\end
+
+Report bugs to <slazav@altlinux.org>
+EOF
+exit
 }
 
-die "usage: $0 [-o] <in_file> <out_file>\n" if ($#ARGV!=1);
-my $in_file  = $ARGV[0];
-my $out_file = $ARGV[1];
+##################################################
 
-die "can't find file $in_file\n" unless (-f "$in_file");
-open (IN, "$in_file") or die "can't open file $in_file\n";
+opts="hvs"
 
-$in_file =~ /(^|^.*\/)([^\/]+)$/;
+TEMP=`getopt -n "$PROG" -o $opts -- "$@"` || show_help
+eval set -- "$TEMP"
 
-my $dir=$1;
-$2 =~ /(.+)\.[^\.]+/;
+skip_files=
+while :; do
+  case "$1" in
+    -v) verbose=1 ;;
+    -h) show_help ;;
+    -s) skip_files=1 ;;
+    --) shift; break ;;
+  esac
+  shift
+done
 
-my $base=$1;
-$dir.=$base;
+[ "$#" = 2 ] || show_help
 
-print STDERR "Using dir:$dir  base:$base\n";
+ifile="$1"
+ofile="$2"
+[ -r "$ifile" ] || fatal "$ifile: can't find file"
 
-die "can't find photo dir $dir/\n" unless (-d "$dir");
+base="${1%%.*}"
 
-my @allph;
-my $table_was_open=0;
-my $num=-1;
+##################################################
 
-# читаем файл, вставляем таблицы с маленькими фотографиями,
-# результат выдаем в $out_file
-
-open (OUT, "> $out_file") or die "can't open file $out_file\n";
-
-foreach(<IN>){
-  if (/^\\photo([rl]?)\s+(\S+)\s+(.*)$/){ # если строчка начинается с \photo ...
-    $num++;
-
-    my $r_l    = defined $1 ? $1:'';
-    my $file   = defined $2 ? $2:'';
-    my $text   = defined $3 ? $3:'';
-    my $alttext = $text;
-    $alttext=~s/<[^>]*>//g;
-    $alttext=~s/\"/\'/g;
-
-    $file.='.jpg' if ($file!~/\./);
-    my $basename=$file;
-    $basename=~s/\.[^\.]+$//;
-
-    die "can't find file $dir/$file\n" if (!-f "$dir/$file");
-
-    my $new_th='';
-    if ((!-f "$dir/_$file") && ($oldph!=1)){
-      `ph_resize $dir/$file $dir/_$file 200 100 600`;
-      $new_th='yes';
-    }
-
-    push @allph, {file=>$file, text=>$text, alttext=>$alttext, basename=>$basename, new_th=>$new_th};
-    print STDERR "$file $text\n";
-
-    my ($w, $h) = get_size("$dir/_$file");
-
-    my $align = ($r_l eq 'l')? 'left': ($r_l eq 'r')? 'right': 'center';
-    print OUT "<p><table border=0 align=$align cellpadding=10><tr>\n" 
-      unless $table_was_open;
-    $table_was_open=1;
-    print OUT "<td width=$w valign=top><a name=\"photo$num\"></a>\n";
-    print OUT "<a href=\"$base/$basename.htm\">\n";
-    print OUT "<img src=\"$base/_$file\" alt=\"$alttext\"\n";
-    print OUT "  width=$w height=$h></a><br>\n";
-    print OUT "<font size=\"-1\"><i>$text</i></font></td>\n";
-  }
-  elsif (/^\\end/){ # если строчка начинается с \end - то все...
-    last;
-  } else { # остальной текст копируем без изменений
-    print OUT "</tr></table>\n" if $table_was_open;
-    $table_was_open=0;
-    print OUT;
-  }
-}
-print OUT "</tr></table>\n" if $table_was_open;
-
-  print STDERR $num+1,"\n";
-
-# создаем html-файл для каждой фотографии 
-exit if ($oldph==1);
-for ($num=0; $num<=$#allph; $num++){
-
-  my $file=$allph[$num]->{file};
-  my $text=$allph[$num]->{text}; 
-  my $alttext=$allph[$num]->{alttext}; 
-  my $basename=$allph[$num]->{basename};
-  my $new_th=$allph[$num]->{new_th};
-
-#  next if (-M "$dir/$file.htm" < -M "$dir.htm");
-
-  my $prev = $num==0       ? $#allph : $num-1; 
-  my $next = $num==$#allph ? 0 :       $num+1; 
-  my $use_gif = -f "$dir/$basename.fig";
-
-  my ($w, $h) = get_size("$dir/$file");  
-
-  open (HTM, "> $dir/$basename.htm") or die "can't open $dir/$basename.htm\n";
-
-  if ($use_gif && ((! -f "$dir/$basename.gif") || 
-       (-M "$dir/$basename.gif" > -M "$dir/$basename.fig"))){
-    `fig2dev -j -Lgif -D +0:200 -t#FFFFFF $dir/$basename.fig $dir/$basename.gif`;
-    print STDERR "creating GIF for $basename\n";
-#    if ($new_th eq 'yes') {
-#      my ($tw, $th) = get_size("$dir/_$file");  
-#      `composite -geometry ${tw}x${th} $dir/$basename.gif $dir/_$file $dir/_$file`;
-#    }
-
-#    `~/bin/fig2dev-cyr -Lgif -S2 -D +0:200 -t#FFFFFF $dir/$file.fig $dir/$file.gif`;
-
-#    `fig2dev -Leps -D +0:200 $dir/$file.fig $dir/$file.ps`;
-#    `~/bin/figcyr < $dir/$file.ps > $dir/$file.ps.cyr`;
-#    `gs -dNOPAUSE -dBATCH -sDEVICE=pngalpha -sOutputFile=$dir/$file.gif $dir/$file.ps.cyr`;
-  }
-
-  if ($use_gif && (-f "$dir/$basename.gif") && 
-       (-M "$dir/$basename.gif" < -M "$dir/_$file")){
-    `mogrify -fill red -draw 'circle 10,10,12,12' $dir/_$file`;
-    print STDERR "creating CIRC for $basename\n";
-  }
-
-  print HTM qq*<html>
-    <head><title>$alttext</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=koi8-r">
-    </head>
-    <body bgcolor="#FFFFFF">
-    <table width="100%"><tr>
-    <td align=left><a href="$allph[$prev]->{basename}.htm">предыдущая</a></td>
-    <td align=center><a href="../$base.htm#photo$num">к оглавлению</a></td>
-    <td align=right><a href="$allph[$next]->{basename}.htm">следующая</a></td>
-    </tr></table>
-  *;
-
-  print HTM qq*
-    <script language="JavaScript">
-    function update_vis(){
-      document.getElementById("image2").style.visibility=
-        document.forms[0].elements[0].checked?'visible':'hidden'}
-    function sw_marks(){
-      document.forms[0].elements[0].checked=
-        !document.forms[0].elements[0].checked}
-    </script>
-  * if $use_js && $use_gif; 
-
-  print HTM "<div align=left width=$w>\n";
-  print HTM qq* 
-    <form><input type="checkbox" checked onclick="update_vis()" type="button">
-    Рисовать пометки (для переключения щелкните мышью по картинке)</form>
-  *  if $use_js && $use_gif;
-  print HTM "<p><font size=\"+2\">&nbsp;&nbsp;$text</font></p>\n";
-  print HTM "</div>\n";
-
-  print HTM qq*
-  <p><div style="position: relative; height: ${h}px;" onclick="sw_marks(); update_vis()">
-    <img id="image1" style="position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px" src="$file" alt="$alttext">
-    <img id="image2" style="position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: visible;" src="$basename.gif">
-  </div></p>
-  * if $use_gif;
-
-  print HTM qq*
-    <img src=\"$file\" width=$w height=$h alt="$alttext">
-  * if !$use_gif;
-
-  my ($lat, $lon, $alt, $date) = split /\s/, `exif_getinfo "$dir/$file"`, 4;
-  print HTM  "<br/>Дата и время съемки: $date\n" if ($date !~ /^\s*$/);
-  printf HTM "<br/>Высота: %d м\n", int($alt) if ($alt ne '');
-  printf HTM  "<br/>Координаты: %.7f %.7f\n", $lat, $lon if ($lat ne '') && ($lon ne '');
-
-  print HTM qq*
-    </body></html>
-  *;
-  close HTM;
+filter_text(){
+  printf "%s" "$1" |
+  sed -e '
+    s/<[^>]*>//g
+    s/<\|>//g
+    s/[[:space:]]\+$//
+    s/^[[:space:]]\+//
+  '
 }
 
-# getting image size
-sub get_size{
-  if (`identify $_[0]` =~ /\s(\d+)x(\d+)\s/){ return ($1, $2); }
-  return (0,0);
-}
+
+if [ -z "$skip_files" ]; then
+  images="$(sed -n -e '
+      /^\\photo[rl]\?[[:space:]]\+/p
+      /^\\end/q
+    ' "$ifile")"
+
+  files="$(printf "%s" "$images" | cut -d' ' -f2 | tr '\n' ' ')"
+  files="${files% }"
+  last_file="${files##* }"
+  first_file="${files%% *}"
+
+  num=0
+  while read cmd file title; do
+    num="$(($num+1))"
+
+    purl="$(printf "$files" |
+            sed -n -e "s/\(^\|.*[[:space:]]\)\([^[:space:]]\+\)[[:space:]]\+$file.*/\2/p")"
+    purl="${purl:-$last_file}"
+    purl="${purl%.*}.htm"
+
+    nurl="$(printf "$files" |
+            sed -n -e "s/.*$file[[:space:]]\+\([^[:space:]]\+\).*/\1/p")"
+    nurl="${nurl:-$first_file}"
+    nurl="${nurl%.*}.htm"
+
+    uurl="../${ifile%.*}.htm#photo$num"
+
+    ph_update_www -t "$title" -p "$purl" -u "$uurl" -n "$nurl" "$base/$file"
+    echo "$file $title"
+  done <<EOF
+  $images
+EOF
+  echo "images: $num"
+fi
+
+table_was_opened=
+num=0
+while IFS='' read -r line; do
+  if [ -z "$line" ]; then
+    [ -z "$table_was_opened" ] ||
+      printf "</tr>\n</table></p>\n"
+    printf "\n"
+  elif [ -z "${line%%\\photo*}" ]; then
+    num="$(($num+1))"
+
+
+    cmd="$(printf "$line" |
+           LC_ALL=C sed -n -e '
+             s/^\\photor[[:space:]]\+/align=right\n/
+             s/^\\photol[[:space:]]\+/align=left\n/
+             s/^\\photo[[:space:]]\+/align=center\n/
+             t ph; :ph
+             s/\n\([^[:space:]]\+\)[[:space:]]\+\(.*\)$/\nfile="\1"\ntitle="\2"/p
+             t
+             s/\n\([^[:space:]]\+\)$/\nfile="\1"\ntitle=""/p
+           ')"
+
+    eval "$cmd"
+
+    alttitle="$(filter_text "$title")"
+    hfile="$base/${file%.*}.htm"
+    tfile="$base/_$file"
+
+    s="$(ph_size $tfile)"
+    w="${s%% *}"
+    h="${s##* }"
+
+    [ -n "$table_was_opened" ] ||
+      printf "<p><table border=0 align=$align cellpadding=10><tr>\n"
+    printf "<td width=$w valign=top><a name=\"photo$num\"></a>\n"
+    printf "<a href=\"$hfile\">\n"
+    printf "<img src=\"$tfile\" alt=\"$alttitle\"\n"
+    printf "  width=$w height=$h></a><br>\n"
+    printf "<font size=\"-1\"><i>$title</i></font></td>\n"
+    table_was_opened=1
+
+  elif [ -z "${line%%\\end*}" ]; then
+    [ -z "$table_was_opened" ] ||
+      printf "</tr>\n</table></p>\n"
+    printf "</body>\n<\html>\n"
+    break
+  else
+    [ -z "$table_was_opened" ] ||
+      printf "</tr>\n</table></p>\n"
+    printf "%s\n" "$line"
+    table_was_opened=
+  fi
+done < "$ifile" > "$ofile"
 
