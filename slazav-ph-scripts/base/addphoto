@@ -59,7 +59,7 @@ foreach(<IN>){
 
     my $new_th='';
     if ((!-f "$dir/_$file") && ($oldph!=1)){
-      `~/bin/ph_resize $dir/$file $dir/_$file 200 100 600`;
+      `ph_resize $dir/$file $dir/_$file 200 100 600`;
       $new_th='yes';
     }
 
@@ -112,7 +112,7 @@ for ($num=0; $num<=$#allph; $num++){
 
   if ($use_gif && ((! -f "$dir/$basename.gif") || 
        (-M "$dir/$basename.gif" > -M "$dir/$basename.fig"))){
-    `~/bin/fig2dev-cyr -Lgif -D +0:200 -t#FFFFFF $dir/$basename.fig $dir/$basename.gif`;
+    `fig2dev -j -Lgif -D +0:200 -t#FFFFFF $dir/$basename.fig $dir/$basename.gif`;
     print STDERR "creating GIF for $basename\n";
 #    if ($new_th eq 'yes') {
 #      my ($tw, $th) = get_size("$dir/_$file");  
@@ -133,7 +133,7 @@ for ($num=0; $num<=$#allph; $num++){
   }
 
   print HTM qq*<html>
-    <head><title>$text</title>
+    <head><title>$alttext</title>
     <meta http-equiv="Content-Type" content="text/html; charset=koi8-r">
     </head>
     <body bgcolor="#FFFFFF">
@@ -165,7 +165,7 @@ for ($num=0; $num<=$#allph; $num++){
 
   print HTM qq*
   <p><div style="position: relative; height: ${h}px;" onclick="sw_marks(); update_vis()">
-    <img id="image1" style="position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px" src="$file" alt="$text">
+    <img id="image1" style="position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px" src="$file" alt="$alttext">
     <img id="image2" style="position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: visible;" src="$basename.gif">
   </div></p>
   * if $use_gif;
@@ -174,7 +174,7 @@ for ($num=0; $num<=$#allph; $num++){
     <img src=\"$file\" width=$w height=$h alt="$alttext">
   * if !$use_gif;
 
-  my ($lat, $lon, $alt, $date) = split /\s/, `~/bin/exif_getinfo "$dir/$file"`, 4;
+  my ($lat, $lon, $alt, $date) = split /\s/, `exif_getinfo "$dir/$file"`, 4;
   print HTM  "<br/>Дата и время съемки: $date\n" if ($date !~ /^\s*$/);
   printf HTM "<br/>Высота: %d м\n", int($alt) if ($alt ne '');
   printf HTM  "<br/>Координаты: %.7f %.7f\n", $lat, $lon if ($lat ne '') && ($lon ne '');
@@ -185,7 +185,7 @@ for ($num=0; $num<=$#allph; $num++){
   close HTM;
 }
 
-# процедура для получения размера фотографии
+# getting image size
 sub get_size{
   if (`identify $_[0]` =~ /\s(\d+)x(\d+)\s/){ return ($1, $2); }
   return (0,0);
