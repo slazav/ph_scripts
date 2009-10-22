@@ -1,4 +1,4 @@
-BINDIR=$(prefix)/usr/bin
+BINDIR=$(prefix)/bin
 INSTALL=/usr/bin/install
 
 DIRS=base
