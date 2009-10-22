@@ -1,0 +1,49 @@
+#!/usr/bin/perl -w
+use strict;
+
+die "usage: $0 <file>\n" if $#ARGV<0;
+
+# get exif-data as a hash
+sub get_exif{
+  my $files=join(' ', @_);
+  my %ret;
+  foreach (`exiv2 -Pkv $files 2>/dev/null`){
+    chomp;
+    my ($k, $v) = split(/\s+/,$_,2);
+    $ret{$k}=$v;
+  }
+  return %ret;
+}
+
+my $f=$ARGV[0];
+my %dat=get_exif($f);
+
+my $lat="";
+if ((exists $dat{'Exif.GPSInfo.GPSLatitude'}) &&
+    ($dat{'Exif.GPSInfo.GPSLatitude'}=~/^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(\d+)\/(\d+)/)){
+  $lat = 1.0*$1/$2 + 1.0/60.0*$3/$4 + 1.0/3600.0*$5/$6;}
+if ((exists $dat{'Exif.GPSInfo.GPSLatitudeRef'}) &&
+    ($dat{'Exif.GPSInfo.GPSLatitudeRef'}=~/^S/)) {$lat=-$lat;}
+print "exif_lat=\"$lat\"\n";
+
+
+my $lon="";
+if ((exists $dat{'Exif.GPSInfo.GPSLongitude'}) &&
+    ($dat{'Exif.GPSInfo.GPSLongitude'}=~/^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(\d+)\/(\d+)/)){
+  $lon = 1.0*$1/$2 + 1.0/60.0*$3/$4 + 1.0/3600.0*$5/$6;}
+if ((exists $dat{'Exif.GPSInfo.GPSLongitudeRef'}) &&
+    ($dat{'Exif.GPSInfo.GPSLongitudeRef'}=~/^S/)) {$lon=-$lon;}
+print "exif_lon=\"$lon\"\n";
+
+my $alt="";
+if ((exists $dat{'Exif.GPSInfo.GPSAltitude'}) &&
+    ($dat{'Exif.GPSInfo.GPSAltitude'}=~/^(\d+)\/(\d+)/)) {$alt=1.0*$1/$2;}
+if ((exists $dat{'Exif.GPSInfo.GPSAltitudeRef'}) &&
+    ($dat{'Exif.GPSInfo.GPSAltitudeRef'}!=0)) {$alt=-$alt;}
+print "exif_alt=\"$alt\"\n";
+
+my $date="";
+# if (exists $dat{'Exif.Image.DateTime'}) {$date=$dat{'Exif.Image.DateTime'};}
+if (exists $dat{'Exif.Photo.DateTimeOriginal'}) {$date=$dat{'Exif.Photo.DateTimeOriginal'};}
+print "exif_date=\"$date\"\n";
+
