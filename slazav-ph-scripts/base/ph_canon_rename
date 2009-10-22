@@ -1,0 +1,11 @@
+#!/bin/bash -efu
+
+# rename canon images to original numbers
+
+for i in $@; do
+  [ -s "$i" ] || continue
+  exiv2 -Pkt $i | while read k v; do
+    [ "$k" = Exif.Canon.ImageNumber ] || continue
+    mv "$i" "${v#*-}.jpg"
+  done
+done
