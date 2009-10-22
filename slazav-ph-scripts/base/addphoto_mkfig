@@ -1,0 +1,42 @@
+#!/usr/bin/perl -w
+use strict;
+
+# Create fig-file for a given image
+
+# Add this to you gqviewrc:
+# external_8: "fig" "file=%p; addphoto_mkfig $file; xfig ${file%.*}.fig &"
+
+# image size
+sub get_size{
+  if (`identify $_[0]` =~ /\s(\d+)x(\d+)\s/){ return ($1, $2); }
+  return (0,0);
+}
+
+die "usage: $0 file.jpg\n" if !defined($ARGV[0]);
+my ($w, $h) = get_size($ARGV[0]);
+
+$w=int($w*14.2875);
+$h=int($h*14.2875);
+
+my $outname=$ARGV[0];
+$outname=~s/\.[[:alnum:]]+$/.fig/ > 0 or $outname.=".fig";
+exit if -f $outname;
+
+open OUT, "> $outname" or die "can't open $outname\n";
+
+my $image_name = $ARGV[0];
+$image_name=~s/^.*\/([^\/]+)/$1/;
+
+print OUT qq*\#FIG 3.2  Produced by addphoto_mkfig
+Landscape
+Center
+Metric
+A4
+100.00
+Single
+-2
+1200 2
+2 5 0 1 0 -1 500 -1 -1 0.000 0 0 -1 0 0 5
+        0 $image_name
+        0 0 $w 0 $w $h 0 $h 0 0
+*;
