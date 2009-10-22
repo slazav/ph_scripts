@@ -73,13 +73,10 @@ base="${1%%.*}"
 ##################################################
 
 print_exif2html(){
-  local file="$1"
-#  exif_getinfo "$file" | {
-#    read lat lon alt date
-#    [ -z "$date" ] || printf "<br/>Дата и время съемки: $date\n"
-#    [ -z "$alt"  ] || printf "<br/>Высота: %d м\n" "$alt"
-#    [ -z "$lat" -a -z "$lon" ] || printf "<br/>Координаты: %.7f %.7f\n" "$lat" "$lon"
-#  }
+  eval "$(ph_exif "$1")"
+  [ -z "$exif_date" ] || printf "\n  <br/>Дата и время съемки: $exif_date"
+  [ -z "$exif_alt"  ] || printf "\n  <br/>Высота: %d м" "${exif_alt%.*}"
+  [ -z "$exif_lat" -a -z "$exif_lon" ] || printf "\n  <br/>Координаты: %.7f %.7f" "$exif_lat" "$exif_lon"
 }
 
 filter_text(){
