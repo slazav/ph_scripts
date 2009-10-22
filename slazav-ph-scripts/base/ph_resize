@@ -1,12 +1,12 @@
-#!/bin/bash
+#!/bin/sh -efu
 
 m1=800
 m2=400
 m3=5000
 
 # for jpeg conversions
-sharpen=
-quality=85
+sharpen=''
+quality='85'
 
 in_image="$1"
 out_image="$2"

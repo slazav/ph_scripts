@@ -4,12 +4,12 @@ if [ "$#" -lt 1 ]; then
 cat <<EOF
 
 ph_towww -- prepare images for www-publishing
- - resize images by ph_resize
+ - smartly resize by ph_resize
  - remove exif thumbnails
 
 usage: $0 <image1> .. <imageN>
 
-V.Zavjalov (slazav@altlinux.org), 07/2008
+Report bugs to <slazav@altlinux.org>
 EOF
 exit 1
 fi
