@@ -1,0 +1,49 @@
+#!/bin/sh -eu
+
+. shell-error
+
+# normalize photo names, autorotate, create archive copy in .src directory
+
+count=0
+# convert names to lowercase
+for i in $(find . -maxdepth 1 -name '*.JPG' -or -name '*.jpg'); do
+  i="${i#./}"
+  chmod 644 "$i"
+  count="$(($count+1))"
+
+  n="$(echo "$i" | tr 'A-Z' 'a-z')"
+  n="${n#img_}"
+
+  [ "$n" != "$i" ] || continue
+
+  if [ -f "$n" ]; then
+    echo "Warning: converting $i to lowercase: $n exists!"
+    for l in a b c d e f g h i j k l m\
+             n o p q r s t u v w x y z; do
+      nn="${n%.jpg}$l.jpg"
+      if ! [ -f "$nn" ]; then
+        n="$nn"
+        echo "Renaming $i to $n"
+        break
+      fi
+    done
+  fi
+  [ ! -f "$n" ] || fatal "Can't find uniq name for $i!"
+
+  mv "$i" "$n"
+  echo "Renaming $i to $n..."
+done
+
+[ "$count" != 0 ] || fatal "No jpeg files found!"
+
+echo "$count jpeg files found"
+
+# autorotate photos
+exifautotran *.jpg
+
+# create archive copy
+mkdir .src
+cp *.jpg .src/
+
+chmod 444 .src/*.jpg
+chmod 555 .src

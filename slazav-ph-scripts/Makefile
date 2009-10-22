@@ -1,7 +1,7 @@
 BINDIR=$(prefix)/bin
 INSTALL=/usr/bin/install
 
-DIRS=base
+DIRS={base,pd}
 
 all:
 
