@@ -1,0 +1,206 @@
+#!/bin/sh -efu
+
+charset="koi8-r"
+fig_lang="ru_RU.KOI8-R"
+
+. shell-error
+
+##################################################
+
+PROG="${0##*/}"
+
+show_help()
+{
+	cat <<EOF
+
+$PROG - update html, gif and thumbnail for an image
+
+Usage: $PROG [options] file
+
+Options:
+    -h,         display help screen
+    -v,         be more verbose
+    -t <title>  set image title
+    -p <url>    url for "previous" reference
+    -u <url>    url for "up" reference
+    -n <url>    url for "next" reference
+
+Input files:
+  name.{jpg,png,tiff}  -- sourse image
+  name.fig             -- marks in fig format
+
+Generated files:
+  _name.{jpg,png,tiff} -- thumbnail
+  name.gif             -- marks
+  name.htm             -- html
+
+Report bugs to <slazav@altlinux.org>
+EOF
+exit
+}
+
+##################################################
+
+opts="hvt:p:u:n:"
+
+TEMP=`getopt -n "$PROG" -o $opts -- "$@"` || show_help
+eval set -- "$TEMP"
+
+title=""
+purl=""
+uurl=""
+nurl=""
+while :; do
+  case "$1" in
+    -v) verbose=1 ;;
+    -h) show_help ;;
+    -t) title="$2"; shift ;;
+    -p) purl="$2"; shift ;;
+    -u) uurl="$2"; shift ;;
+    -n) nurl="$2"; shift ;;
+    --) shift; break ;;
+  esac
+  shift
+done
+
+[ "$#" = 1 ] || show_help
+
+ifile="$1"
+[ -r "$ifile" ] || fatal "$ifile: can't find file"
+
+base="${1%%.*}"
+
+##################################################
+
+print_exif2html(){
+  local file="$1"
+#  exif_getinfo "$file" | {
+#    read lat lon alt date
+#    [ -z "$date" ] || printf "<br/>Дата и время съемки: $date\n"
+#    [ -z "$alt"  ] || printf "<br/>Высота: %d м\n" "$alt"
+#    [ -z "$lat" -a -z "$lon" ] || printf "<br/>Координаты: %.7f %.7f\n" "$lat" "$lon"
+#  }
+}
+
+filter_text(){
+  printf "%s" "$1" |
+  sed -e '
+    s/<[^>]*>//g
+    s/<\|>//g
+    s/[[:space:]]\+$//
+    s/^[[:space:]]\+//
+  '
+}
+
+th_mark(){
+  mogrify -fill red -draw 'circle 10,10,12,12' "$1"
+  exiv2 -c "<marked>" "$1"
+}
+th_marked(){
+  [ -r "$1" ] || return 1
+  [ "$(exiv2 -pc "$1")" = "<marked>" ]
+}
+
+verbose "processing $ifile";
+
+## updating GIF with marks
+mfile=""
+[ ! -r "$base.fig" ] || mfile="$base.gif"
+# if main image is *.gif -- don't do .gif marks
+[ "$mfile" != "$ifile" ] || mfile=""
+
+if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
+  verbose "  creating GIF with marks";
+  LANG="$fig_lang" fig2dev -j -Lgif -D +0:200 -t'#FFFFFF' "$base.fig" "$mfile"
+fi
+
+
+## updating thumbnail
+tfile="${ifile%/*}/_${ifile##*/}"
+
+# remove marked thumbnail if we have no marks
+if th_marked "$tfile" && [ -z "$mfile" ]; then
+  verbose " removing marked thumbnail"
+  rm -f "$tfile"
+fi
+
+# create thumbnail if image have change
+if [ "$tfile" -ot "$ifile" ]; then
+  verbose " creating thumbnail"
+  ph_resize $ifile $tfile 200 100 600
+fi
+
+# update mark on thumbnail
+if ! th_marked "$tfile" && [ -n "$mfile" ]; then
+  verbose "  updating mark on thumbnail"
+  th_mark "$tfile"
+fi
+
+
+## creating html
+verbose "  creating html";
+alttitle="$(filter_text "$title")"
+
+s="$(ph_size $ifile)"
+w="${s%% *}"
+h="${s##* }"
+
+# make navigation panel
+[ -z "$purl" ] || purl="<a href=\"$purl\">предыдущая</a>"
+[ -z "$uurl" ] || uurl="<a href=\"$uurl\">к оглавлению</a>"
+[ -z "$nurl" ] || nurl="<a href=\"$nurl\">следующая</a>"
+
+nav=""
+[ -z "$purl" -a -z "$uurl" -a -z "$nurl" ] ||
+nav="
+  <p><table width=\"100%\"><tr>
+  <td align=left>$purl</td>
+  <td align=center>$uurl</td>
+  <td align=right>$nurl</td>
+  </tr></table></p>"
+
+# make javascript for switching marks
+mark_scr=""
+mark_sty=""
+mark_nav=""
+image="
+    <img src=\"${ifile##*/}\" width=\"$w\" height=\"$h\" alt=\"$alttitle\">"
+
+if [ -n "$mfile" ]; then
+  mark_scr="
+    <script language=\"JavaScript\">
+    function update_vis(){
+      document.getElementById(\"marks\").style.visibility=
+        document.forms[0].elements[0].checked?'visible':'hidden'}
+    function sw_marks(){
+      document.forms[0].elements[0].checked=
+        !document.forms[0].elements[0].checked}
+    </script>"
+
+  mark_sty="
+    <style type=\"TEXT/CSS\">
+      #image { position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px; }
+      #marks { position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: visible; }
+    </style>"
+  mark_nav="
+    <form><input type=\"checkbox\" checked onclick=\"update_vis()\">
+    Рисовать пометки (для переключения щелкните мышью по картинке)</form>"
+  image="
+    <p><div style=\"position: relative; height: ${h}px;\" onclick=\"sw_marks(); update_vis()\">
+      <img id=\"image\" src=\"${ifile##*/}\" alt=\"$alttitle\">
+      <img id=\"marks\" src=\"${mfile##*/}\">
+      </div></p>"
+fi
+
+cat > $base.htm << EOF
+<html>
+  <head><title>$alttitle</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=$charset">$mark_scr$mark_sty
+  </head>
+  <body bgcolor="#FFFFFF">$nav$mark_nav
+    <div align=left width=$w>
+      <p><font size="+2">$title</font></p>$image
+    </div>$(print_exif2html "$ifile")
+  </body>
+</html>
+EOF
