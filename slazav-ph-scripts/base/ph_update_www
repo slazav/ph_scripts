@@ -94,14 +94,14 @@ filter_text(){
 
 th_mark(){
   mogrify -fill red -draw 'circle 10,10,12,12' "$1"
-  exiv2 -c "<marked>" "$1"
+  exiv2 -c "<marked>" "$1" 2>/dev/null
 }
 th_marked(){
   [ -r "$1" ] || return 1
-  [ "$(exiv2 -pc "$1")" = "<marked>" ]
+  [ "$(exiv2 -pc "$1" 2>/dev/null)" = "<marked>" ]
 }
 
-verbose "processing $ifile";
+verbose "$ifile";
 
 ## updating GIF with marks
 mfile=""
