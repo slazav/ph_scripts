@@ -2,7 +2,6 @@
 
 . shell-error
 
-
 ##################################################
 
 PROG="${0##*/}"
@@ -98,12 +97,13 @@ if [ -z "$skip_files" ]; then
 
     uurl="../${ifile%.*}.htm#photo$num"
 
-    ph_update_www -t "$title" -p "$purl" -u "$uurl" -n "$nurl" "$base/$file"
-    echo "$file $title"
+    [ -f "$base/$file" ] || file="$file.jpg"
+
+    ph_update_www ${verbose:+-v} -t "$title" -p "$purl" -u "$uurl" -n "$nurl" "$base/$file"
+#    echo "$file $title"
   done <<EOF
   $images
 EOF
-  echo "images: $num"
 fi
 
 table_was_opened=
@@ -116,19 +116,19 @@ while IFS='' read -r line; do
   elif [ -z "${line%%\\photo*}" ]; then
     num="$(($num+1))"
 
+    read cmd file title <<EOF
+    $line
+EOF
 
-    cmd="$(printf "$line" |
-           LC_ALL=C sed -n -e '
-             s/^\\photor[[:space:]]\+/align=right\n/
-             s/^\\photol[[:space:]]\+/align=left\n/
-             s/^\\photo[[:space:]]\+/align=center\n/
-             t ph; :ph
-             s/\n\([^[:space:]]\+\)[[:space:]]\+\(.*\)$/\nfile="\1"\ntitle="\2"/p
-             t
-             s/\n\([^[:space:]]\+\)$/\nfile="\1"\ntitle=""/p
-           ')"
+    case "$cmd" in
+      \\photor) align=right ;;
+      \\photol) align=left ;;
+      *) align=center
+    esac
 
-    eval "$cmd"
+    printf "%3d  %-15s %s\n" "$num" "$file" "$title" > /dev/stderr
+
+    [ -f "$base/$file" ] || file="$file.jpg"
 
     alttitle="$(filter_text "$title")"
     hfile="$base/${file%.*}.htm"
