@@ -118,11 +118,6 @@ fi
 ## updating thumbnail
 tfile="${ifile%/*}/_${ifile##*/}"
 
-# remove marked thumbnail if we have no marks
-if th_marked "$tfile" && [ -z "$mfile" ]; then
-  verbose " removing marked thumbnail"
-  rm -f "$tfile"
-fi
 
 # create thumbnail if image have change
 if [ "$tfile" -ot "$ifile" ]; then
@@ -130,12 +125,18 @@ if [ "$tfile" -ot "$ifile" ]; then
   ph_resize $ifile $tfile 200 100 600
 fi
 
-# update mark on thumbnail
-if ! th_marked "$tfile" && [ -n "$mfile" ]; then
-  verbose "  updating mark on thumbnail"
-  th_mark "$tfile"
+if th_marked "$tfile"; then
+  # remove marked thumbnail if we have no marks
+  if [ -z "$mfile" ]; then
+    verbose " removing marked thumbnail"
+    ph_resize $ifile $tfile 200 100 600
+  fi
+else
+  if [ -n "$mfile" ]; then
+    verbose "  updating mark on thumbnail"
+    th_mark "$tfile"
+  fi
 fi
-
 
 ## creating html
 verbose "  creating html";
