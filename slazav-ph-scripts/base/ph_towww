@@ -1,0 +1,34 @@
+#!/bin/sh -efu
+
+if [ "$#" -lt 1 ]; then
+cat <<EOF
+
+ph_towww -- prepare images for www-publishing
+ - resize images by ph_resize
+ - remove exif thumbnails
+
+usage: $0 <image1> .. <imageN>
+
+V.Zavjalov (slazav@altlinux.org), 07/2008
+EOF
+exit 1
+fi
+
+trap "if test -n \"\$tempfile\"; then rm -f \"\$tempfile\"; fi" INT QUIT TERM
+tempfile=`mktemp`;
+if [ "$?" -ne "0" ]; then
+  printf "Failed to create temporary file\n"
+  exit 1
+fi
+
+for i in $@; do
+  if [ ! -w "$i" ]; then
+    printf "%-20s skipping\n" "$i"
+    continue
+  fi
+  ph_resize "$i" "$tempfile" || cp -f "$i" "$tempfile"
+  exiv2 -d t "$tempfile" ||:
+  mv -f "$tempfile" "$i"
+done
+
+rm -f "$tempfile"

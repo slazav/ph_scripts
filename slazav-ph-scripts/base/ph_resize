@@ -1,0 +1,113 @@
+#!/bin/bash
+
+m1=800
+m2=400
+m3=5000
+
+# for jpeg conversions
+sharpen=
+quality=85
+
+in_image="$1"
+out_image="$2"
+
+if [ -z "$in_image" -o -z "$out_image" ]; then
+  cat <<EOF
+
+ph_resize -- resize image smartly
+
+Get 5 parameters: input and output image file names, sizes m1 m2 m3
+Image size calculations:
+- Shrink image to m1 x m1 square if needed
+- If resulting image is too narrow, expand it to
+  m2 pixels on the shortest side.
+- If resulting image is too long, shrink it to
+  m3 pixels on the longest side.
+
+My favorite parameters:
+m1=800 m2=400 m3=5000 for big pictures
+m1=200 m2=100 m3=600  for preview pictures
+
+Requires: identify and convert programs from ImageMagick
+
+usage: $0 <in_image> <out_image> [m1 [m2 [m3]]]
+defaults: m1=$m1 m2=$m2 m3=$m3
+
+V.Zavjalov (slazav@altlinux.org), 07/2008
+
+EOF
+  exit 1
+fi
+
+m1=${3:-$m1}
+m2=${4:-$m2}
+m3=${5:-$m3}
+
+# intsc is a factor to avoid non-integer values
+intsc=1000
+
+# calculating scale factor for size x,y.
+getk(){
+  local x=$1
+  local y=$2
+
+  local kx=$(((intsc*x)/m1))
+  local ky=$(((intsc*y)/m1))
+  local k=$((kx>ky?kx:ky))
+
+  [ "$(((x*intsc)/k < m2))" = 1 ] && k=$(((x*intsc)/m2))
+  [ "$(((y*intsc)/k < m2))" = 1 ] && k=$(((y*intsc)/m2))
+
+  [ "$(((x*intsc)/k > m3))" = 1 ] && k=$(((x*intsc)/m3))
+  [ "$(((y*intsc)/k > m3))" = 1 ] && k=$(((y*intsc)/m3))
+
+  [ "$((k < intsc))" = 1 ] && k=$intsc
+  echo $k
+}
+
+# test for getk()
+test(){
+  echo "--"
+  local x=1000
+  local y=1000
+  for x in `seq 1000 750 15000`; do
+    local k=$(getk "$x" "$y" "$intsc")
+    echo "${x}x${y} -> $(((x*intsc)/k))x$(((y*intsc)/k)) k=$k"
+  done
+  echo "--"
+  local x=1000
+  local y=1000
+  for y in `seq 1000 750 15000`; do
+    local k=$(getk "$x" "$y" "$intsc")
+    echo "${x}x${y} -> $(((x*intsc)/k))x$(((y*intsc)/k)) k=$k"
+  done
+}
+#test; exit 1
+
+
+
+# size of image (head is for animated gifs!)
+size=$(identify $in_image | cut -f 3 -d ' ' | head -n1)
+  [ "$?" = 0 ] || exit 1
+
+x=${size%x*}
+y=${size#*x}
+[ -n "$x" -a -n "$y" ] || exit 1
+
+k=$(getk "$x" "$y" "$intsc")
+xn=$(((x*intsc)/k))
+yn=$(((y*intsc)/k))
+
+if [ "$k" = "$intsc" ]; then
+  printf "%-20s %4d x %4d -> no changes\n" "$in_image" "${x}" "${y}"
+  cp -f "$in_image" "$out_image"
+  exit 0
+fi
+
+printf "%-20s %4d x %4d -> %3d x %3d\n" "$in_image" "${x}" "${y}" "${xn}" "${yn}"
+
+# resizing!
+convert -geometry ${xn}x${yn} \
+                  ${sharpen:+-sharpen $sharpen} \
+                  ${quality:+-quality $quality} \
+                  "$in_image" "$out_image" || cp -f "$in_image" "$out_image"

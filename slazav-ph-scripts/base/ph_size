@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [ -z $1 ]; then
+  echo "usage: $0 <image>"
+  exit 1
+fi
+
+# size of image (head is for animated gifs!)
+size=$(identify $1 | cut -f 3 -d ' ' | head -n1)
+  [ "$?" = 0 ] || exit 1
+
+x=${size%x*}
+y=${size#*x}
+[ -n "$x" -a -n "$y" ] || exit 1
+
+echo $x $y

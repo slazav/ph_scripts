@@ -1,0 +1,71 @@
+#!/bin/sh -eu
+
+. shell-error
+
+base="${1:-www}"
+file="$base.m4p"
+
+mkdir -p "$base"
+
+[ ! -f "$file" ] || mv -f "$file" "$file.bak"
+
+# removing
+for i in $base/*.jpg; do
+  [ -f "$i" ] || break
+  f="${i#$base/}"
+  [ -n "${f%%_*}" ] || continue
+
+  [ -f "$f" ] ||
+    echo "removing $i"
+  [ -f "${i#$base/}" ] ||
+    rm -f "$base"/{,_}"${f%.jpg}".{jpg,htm}
+done
+
+cat > $file <<EOF
+<html>
+<head>
+  <title>${title:-}</title>
+</head>
+<body>
+  <h2 align="center">${title:-}</h2>
+
+EOF
+
+
+ww=0
+odate=
+for i in *.jpg; do
+  [ -f "$i" ] || fatal "no *.jpg files found!"
+
+  [ ! "$i" -nt "$base/$i" ] ||
+    ph_resize "$i" "$base/$i" 800 400 5000
+  [ ! "$base/$i" -nt "$base/_$i" ] ||
+    ph_resize "$base/$i" "$base/_$i" 200 100  600
+  s="$(ph_size "$base/_$i")"
+  w="${s%% *}"
+
+  date="$(exiv2 -Pkv $i 2>/dev/null |\
+          sed -n 's/Exif.Photo.DateTimeOriginal[[:space:]]*\([0-9:]\+\).*/\1/p' | tr ':' '/')"
+
+
+  if [ "$odate" != "$date" ]; then
+    echo -e "\n<hr><h4>$date</h4>\n" >> "$file"
+    ww=0
+    odate="$date"
+  fi
+
+  ww="$(($ww+$w))"
+  if [ "$(($ww>600))" = 1 ]; then
+    echo "" >> "$file"
+    ww="$w"
+  fi
+
+  echo "\photo $i" >> "$file"
+
+
+done
+
+cat >> $file <<EOF
+</body>
+</html>
+EOF
