@@ -4,6 +4,7 @@ Release: alt1
 Group: Graphics
 License: GPL
 Packager: Vladislav Zavjalov <slazav@altlinux.org>
+BuildArch: noarch
 
 Summary: Scripts for digital photo handling
 
