@@ -67,6 +67,20 @@ filter_text(){
   '
 }
 
+close_table(){
+  [ -n "$table_was_opened" ] || return 0
+  printf "</tr></table></p>\n"
+  table_was_opened=
+  return 0
+}
+
+open_table(){
+  [ -z "$table_was_opened" ] || return 0
+  printf "<p><table border=0 align=$align cellpadding=10><tr>\n"
+  table_was_opened=1
+  return 0
+}
+
 
 if [ -z "$skip_files" ]; then
   images="$(sed -n -e '
@@ -107,10 +121,11 @@ fi
 table_was_opened=
 num=0
 while IFS='' read -r line; do
+
   if [ -z "$line" ]; then
-    [ -z "$table_was_opened" ] ||
-      printf "</tr>\n</table></p>\n"
+    close_table
     printf "\n"
+
   elif [ -z "${line%%\\photo*}" ]; then
     num="$(($num+1))"
 
@@ -136,25 +151,20 @@ EOF
     w="${s%% *}"
     h="${s##* }"
 
-    [ -n "$table_was_opened" ] ||
-      printf "<p><table border=0 align=$align cellpadding=10><tr>\n"
+    open_table
     printf "<td width=$w valign=top><a name=\"photo$num\"></a>\n"
     printf "<a href=\"$hfile\">\n"
     printf "<img src=\"$tfile\" alt=\"$alttitle\"\n"
     printf "  width=$w height=$h></a><br>\n"
     printf "<font size=\"-1\"><i>$title</i></font></td>\n"
-    table_was_opened=1
 
   elif [ -z "${line%%\\end*}" ]; then
-    [ -z "$table_was_opened" ] ||
-      printf "</tr>\n</table></p>\n"
-    printf "</body>\n<\html>\n"
+    close_table
+    printf "</body><\html>\n"
     break
   else
-    [ -z "$table_was_opened" ] ||
-      printf "</tr>\n</table></p>\n"
+    close_table
     printf "%s\n" "$line"
-    table_was_opened=
   fi
 done < "$ifile" > "$ofile"
 
