@@ -3,6 +3,11 @@
 charset="koi8-r"
 fig_lang="ru_RU.KOI8-R"
 
+verbose="${verbose-}"
+verbose(){
+  [ -z "$verbose" ] || printf "%s" "$*" > /dev/stderr
+}
+
 ##################################################
 
 PROG="${0##*/}"
