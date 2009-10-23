@@ -1,33 +1,39 @@
-#!/usr/bin/perl -w
-use strict;
+#!/bin/sh -efu
+
+. shell-error
 
 # Create fig-file for a given image
 
 # Add this to you gqviewrc:
 # external_8: "fig" "file=%p; addphoto_mkfig $file; xfig ${file%.*}.fig &"
 
-# image size
-sub get_size{
-  if (`identify $_[0]` =~ /\s(\d+)x(\d+)\s/){ return ($1, $2); }
-  return (0,0);
-}
+if [ "$#" != 1 ]; then
+  cat <<EOF
 
-die "usage: $0 file.jpg\n" if !defined($ARGV[0]);
-my ($w, $h) = get_size($ARGV[0]);
+addphoto_mkfig -- create fig with image for drawing marks
 
-$w=int($w*14.2875);
-$h=int($h*14.2875);
+usage: addphoto_mkfig <file>
 
-my $outname=$ARGV[0];
-$outname=~s/\.[[:alnum:]]+$/.fig/ > 0 or $outname.=".fig";
-exit if -f $outname;
+EOF
+exit
+fi
 
-open OUT, "> $outname" or die "can't open $outname\n";
+file="$1"
+s="$(ph_size $file)"
+w="${s%% *}"
+h="${s##* }"
 
-my $image_name = $ARGV[0];
-$image_name=~s/^.*\/([^\/]+)/$1/;
+k=14.2875
 
-print OUT qq*\#FIG 3.2  Produced by addphoto_mkfig
+w="$(printf "$w*$k\n" | bc -l)";  w="${w%.*}"
+h="$(printf "$h*$k\n" | bc -l)";  h="${h%.*}"
+
+fig="${file%.*}.fig"
+
+[ ! -f "$fig" ] || exit
+
+cat > "$fig" << EOF
+#FIG 3.2  Produced by addphoto_mkfig
 Landscape
 Center
 Metric
@@ -37,6 +43,6 @@ Single
 -2
 1200 2
 2 5 0 1 0 -1 500 -1 -1 0.000 0 0 -1 0 0 5
-        0 $image_name
+        0 ${file##*/}
         0 0 $w 0 $w $h 0 $h 0 0
-*;
+EOF
