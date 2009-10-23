@@ -2,24 +2,27 @@
 
 . shell-error
 
-base="${1:-www}"
-file="$base.m4p"
+[ "$#" = 1 ] ||
+{
+  cat <<EOF
 
-mkdir -p "$base"
+addphoto_ini - create template for a photoalbum
+
+Usage: addphoto_ini <photo dir>
+
+NOTE: all jpg images if photo dir will be rescaled!
+
+Report bugs to <slazav@altlinux.org>
+
+EOF
+exit
+}
+
+
+dir="$1"
+file="$dir.m4p"
 
 [ ! -f "$file" ] || mv -f "$file" "$file.bak"
-
-# removing
-for i in $base/*.jpg; do
-  [ -f "$i" ] || break
-  f="${i#$base/}"
-  [ -n "${f%%_*}" ] || continue
-
-  [ -f "$f" ] ||
-    echo "removing $i"
-  [ -f "${i#$base/}" ] ||
-    rm -f "$base"/{,_}"${f%.jpg}".{jpg,htm}
-done
 
 cat > $file <<EOF
 <html>
@@ -31,22 +34,25 @@ cat > $file <<EOF
 
 EOF
 
-
 ww=0
 odate=
-for i in *.jpg; do
+
+
+ph_towww $dir/[^_]*.jpg
+for i in $dir/[^_]*.jpg; do
+
   [ -f "$i" ] || fatal "no *.jpg files found!"
 
-  [ ! "$i" -nt "$base/$i" ] ||
-    ph_resize "$i" "$base/$i" 800 400 5000
-  [ ! "$base/$i" -nt "$base/_$i" ] ||
-    ph_resize "$base/$i" "$base/_$i" 200 100  600
-  s="$(ph_size "$base/_$i")"
+  tfile="${i%/*}/_${i##*/}"
+
+  [ ! "$i" -nt "$tfile" ] ||
+    ph_resize "$i" "$tfile" 200 100 600
+
+  s="$(ph_size "$tfile")"
   w="${s%% *}"
 
   date="$(exiv2 -Pkv $i 2>/dev/null |\
           sed -n 's/Exif.Photo.DateTimeOriginal[[:space:]]*\([0-9:]\+\).*/\1/p' | tr ':' '/')"
-
 
   if [ "$odate" != "$date" ]; then
     echo -e "\n<hr><h4>$date</h4>\n" >> "$file"
@@ -59,13 +65,12 @@ for i in *.jpg; do
     echo "" >> "$file"
     ww="$w"
   fi
-
-  echo "\photo $i" >> "$file"
-
-
+  echo "\photo ${i#$dir/}" >> "$file"
 done
 
 cat >> $file <<EOF
 </body>
 </html>
 EOF
+
+addphoto "$file" "${file%.m4p}.htm"
