@@ -3,8 +3,6 @@
 charset="koi8-r"
 fig_lang="ru_RU.KOI8-R"
 
-. shell-error
-
 ##################################################
 
 PROG="${0##*/}"
@@ -66,7 +64,7 @@ done
 [ "$#" = 1 ] || show_help
 
 ifile="$1"
-[ -r "$ifile" ] || fatal "$ifile: can't find file"
+[ -r "$ifile" ] || { printf "$ifile: can't find file\n"; exit 1; }
 
 base="${1%%.*}"
 

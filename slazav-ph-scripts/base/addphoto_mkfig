@@ -1,7 +1,5 @@
 #!/bin/sh -efu
 
-. shell-error
-
 # Create fig-file for a given image
 
 # Add this to you gqviewrc:

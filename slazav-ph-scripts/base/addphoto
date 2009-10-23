@@ -1,7 +1,5 @@
 #!/bin/sh -efu
 
-. shell-error
-
 ##################################################
 
 PROG="${0##*/}"
@@ -53,7 +51,7 @@ done
 
 ifile="$1"
 ofile="$2"
-[ -r "$ifile" ] || fatal "$ifile: can't find file"
+[ -r "$ifile" ] || { printf "$ifile: can't find file\n"; exit 1; }
 
 base="${1%%.*}"
 

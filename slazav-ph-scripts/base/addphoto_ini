@@ -1,7 +1,5 @@
 #!/bin/sh -eu
 
-. shell-error
-
 [ "$#" = 1 ] ||
 {
   cat <<EOF
@@ -41,7 +39,7 @@ odate=
 ph_towww $dir/[^_]*.jpg
 for i in $dir/[^_]*.jpg; do
 
-  [ -f "$i" ] || fatal "no *.jpg files found!"
+  [ -f "$i" ] || { printf "no *.jpg files found!\n"; exit 1; }
 
   tfile="${i%/*}/_${i##*/}"
 
