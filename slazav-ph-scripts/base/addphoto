@@ -53,7 +53,7 @@ ifile="$1"
 ofile="$2"
 [ -r "$ifile" ] || { printf "$ifile: can't find file\n"; exit 1; }
 
-base="${1%%.*}"
+base="${1%.*}"
 
 ##################################################
 
@@ -107,7 +107,8 @@ if [ -z "$skip_files" ]; then
     nurl="${nurl:-$first_file}"
     nurl="${nurl%.*}.htm"
 
-    uurl="../${ifile%.*}.htm#photo$num"
+    index="../${ifile##*/}"; index="${index%.*}.htm"
+    uurl="$index#photo$num"
 
     [ -f "$base/$file" ] || file="$file.jpg"
 
@@ -144,10 +145,10 @@ EOF
     [ -f "$base/$file" ] || file="$file.jpg"
 
     alttitle="$(filter_text "$title")"
-    hfile="$base/${file%.*}.htm"
-    tfile="$base/_$file"
+    hfile="${base##*/}/${file%.*}.htm"
+    tfile="${base##*/}/_$file"
 
-    s="$(ph_size $tfile)"
+    s="$(ph_size "$base/_$file")"
     w="${s%% *}"
     h="${s##* }"
 
