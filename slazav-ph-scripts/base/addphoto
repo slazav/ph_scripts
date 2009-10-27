@@ -110,7 +110,7 @@ if [ -z "$skip_files" ]; then
     index="../${ifile##*/}"; index="${index%.*}.htm"
     uurl="$index#photo$num"
 
-    [ -f "$base/$file" ] || file="$file.jpg"
+    if [ ! -f "$base/$file" ] ;then [ ! -f "$base/$file.jpg" ] || file="$file.jpg"; fi
 
     ph_update_www ${verbose:+-v} -t "$title" -p "$purl" -u "$uurl" -n "$nurl" "$base/$file"
 #    echo "$file $title"
