@@ -1,12 +1,21 @@
 #!/bin/sh -eu
 
-[ "$#" = 1 ] ||
-{
-  cat <<EOF
+######################################################################
+
+show_help(){
+cat <<EOF
 
 addphoto_ini - create template for a photoalbum
 
-Usage: addphoto_ini <photo dir>
+Usage: addphoto_ini [<options>] <photo dir>
+
+Options:
+
+    -h          display help screen
+    -t <title>  set image title
+    -p <url>    url for "previous" reference
+    -u <url>    url for "up" reference
+    -n <url>    url for "next" reference
 
 NOTE: all jpg images if photo dir will be rescaled!
 
@@ -16,21 +25,74 @@ EOF
 exit
 }
 
+opts="htpun"
+TEMP=`getopt -n "$PROG" -o $opts -- "$@"` || show_help
+eval set -- "$TEMP"
+
+title=''
+purl=''
+uurl=''
+nurl=''
+while :; do
+  case "$1" in
+    -h) show_help ;;
+    -t) title="$2"; shift ;;
+    -p) purl="$2"; shift ;;
+    -u) uurl="$2"; shift ;;
+    -n) nurl="$2"; shift ;;
+    --) shift; break ;;
+  esac
+  shift
+done
+
+######################################################################
+
+filter_text(){
+  printf "%s" "$1" |
+  sed -e '
+    s/<[^>]*>//g
+    s/<\|>//g
+    s/[[:space:]]\+$//
+    s/^[[:space:]]\+//
+  '
+}
+
+
+[ "$#" = 1 ] || show_help
 
 dir="$1"
 file="$dir.m4p"
 
+
+
 [ ! -f "$file" ] || mv -f "$file" "$file.bak"
+
+# make navigation panel
+[ -z "$purl" ] || purl="<a href=\"$purl\">предыдущая</a>"
+[ -z "$uurl" ] || uurl="<a href=\"$uurl\">к оглавлению</a>"
+[ -z "$nurl" ] || nurl="<a href=\"$nurl\">следующая</a>"
+
+nav=""
+[ -z "$purl" -a -z "$uurl" -a -z "$nurl" ] ||
+nav="
+  <p><table width=\"100%\"><tr>
+  <td align=left>$purl</td>
+  <td align=center>$uurl</td>
+  <td align=right>$nurl</td>
+  </tr></table></p>"
+
 
 cat > $file <<EOF
 <html>
 <head>
-  <title>${title:-}</title>
+  <title>$alttitle</title>
 </head>
-<body>
-  <h2 align="center">${title:-}</h2>
+<body>$nav
+  <h2 align="center">$title</h2>
 
 EOF
+
+
 
 ww=0
 odate=
