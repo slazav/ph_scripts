@@ -75,6 +75,7 @@ close_table(){
 }
 
 open_table(){
+  local align="$1"
   [ -z "$table_was_opened" ] || return 0
   printf "<p><table border=0 align=$align cellpadding=10><tr>\n"
   table_was_opened=1
@@ -134,9 +135,9 @@ while IFS='' read -r line; do
     $line
 EOF
 
-    case "$cmd" in
-      \\photor) align=right ;;
-      \\photol) align=left ;;
+    case "${cmd#\\}" in
+      photor) align=right ;;
+      photol) align=left ;;
       *) align=center
     esac
 
@@ -152,7 +153,7 @@ EOF
     w="${s%% *}"
     h="${s##* }"
 
-    open_table
+    open_table "$align"
     printf "<td width=$w valign=top><a name=\"photo$num\"></a>\n"
     printf "<a href=\"$hfile\">\n"
     printf "<img src=\"$tfile\" alt=\"$alttitle\"\n"
