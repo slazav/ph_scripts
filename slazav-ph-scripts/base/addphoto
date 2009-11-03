@@ -169,4 +169,5 @@ EOF
     printf "%s\n" "$line"
   fi
 done < "$ifile" > "$ofile"
+close_table >> "$ofile"
 
