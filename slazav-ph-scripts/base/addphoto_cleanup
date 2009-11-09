@@ -1,0 +1,67 @@
+#!/bin/sh -eu
+
+##################################################
+
+PROG="${0##*/}"
+
+show_help()
+{
+  cat <<EOF
+
+$PROG - remove unused images in album
+
+Usage: $PROG indexfile
+
+Options:
+    -h         display help screen
+    -v         be more verbose
+    -d         dry run: only list files to be removed
+
+Report bugs to <slazav@altlinux.org>
+EOF
+exit
+}
+
+##################################################
+
+opts="hvd"
+
+TEMP=`getopt -n "$PROG" -o $opts -- "$@"` || show_help
+eval set -- "$TEMP"
+
+dr=
+while :; do
+  case "$1" in
+    -v) verbose=1 ;;
+    -h) show_help ;;
+    -d) dr=1 ;;
+    --) shift; break ;;
+  esac
+  shift
+done
+
+[ "$#" = 1 ] || show_help
+
+ifile="$1"
+[ -r "$ifile" ] || fatal "$ifile: can't find file"
+
+base="${1%%.*}"
+
+##################################################
+
+files="$(LC_ALL=C sed -n -e '
+   s/^\\photo[rl]\?[[:space:]]\+\([^[:space:]]\+\).*/\1/p' "$ifile")"
+files="$(printf " %s " "$files" | tr '\n' ' ')"
+
+for i in $(find "$base/" -name '*.jpg' -not -name '_*'); do
+  f="${i##*/}"
+  [ -n "${files##* $f *}" ] || continue
+
+  b="${i%.jpg}"
+  for oth in $b.jpg $b.fig $b.htm $b.gif ${b%/*}_$b.jpg; do
+    [ -f "$oth" ] || continue
+    echo "$oth"
+    [ -n "$dr" ] || rm -f "$oth"
+  done
+done
+
