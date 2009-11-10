@@ -71,7 +71,7 @@ done
 ifile="$1"
 [ -r "$ifile" ] || { printf "$ifile: can't find file\n"; exit 1; }
 
-base="${1%%.*}"
+base="${1%.*}"
 
 ##################################################
 
