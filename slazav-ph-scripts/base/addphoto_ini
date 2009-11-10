@@ -2,12 +2,14 @@
 
 ######################################################################
 
+PROG=addphoto_ini
+
 show_help(){
 cat <<EOF
 
-addphoto_ini - create template for a photoalbum
+$PROG - create template for a photoalbum
 
-Usage: addphoto_ini [<options>] <photo dir>
+Usage: $PROG [<options>] <photo dir>
 
 Options:
 
@@ -62,7 +64,7 @@ filter_text(){
 
 dir="$1"
 file="$dir.m4p"
-
+alttitle="$(filter_text "$title")"
 
 
 [ ! -f "$file" ] || mv -f "$file" "$file.bak"
