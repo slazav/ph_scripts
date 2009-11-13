@@ -99,8 +99,6 @@ EOF
 ww=0
 odate=
 
-
-ph_towww $dir/[^_]*.jpg
 for i in $dir/[^_]*.jpg; do
 
   [ -f "$i" ] || { printf "no *.jpg files found!\n"; exit 1; }
