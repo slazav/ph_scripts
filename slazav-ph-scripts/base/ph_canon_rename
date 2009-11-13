@@ -1,6 +1,15 @@
 #!/bin/bash -efu
 
-# rename canon images to original numbers
+[ "$#" -gt 0 ] || {
+cat <<EOF
+ph_canon_rename -- rename photo made by Canon to original names
+
+Usage: ph_canon_rename <one or more jpeg images>
+
+Report bugs to slazav@altlinux.org
+EOF
+exit 1
+}
 
 for i in $@; do
   [ -s "$i" ] || continue
