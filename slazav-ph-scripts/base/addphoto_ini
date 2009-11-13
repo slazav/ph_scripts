@@ -63,7 +63,7 @@ filter_text(){
 [ "$#" = 1 ] || show_help
 
 dir="$1"
-file="$dir.m4p"
+file="$dir.txt"
 alttitle="$(filter_text "$title")"
 
 
@@ -135,4 +135,4 @@ cat >> $file <<EOF
 </html>
 EOF
 
-addphoto "$file" "${file%.m4p}.htm"
+addphoto "$file" "$dir.htm"
