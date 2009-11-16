@@ -162,7 +162,7 @@ EOF
 
   elif [ -z "${line%%\\end*}" ]; then
     close_table
-    printf "</body><\html>\n"
+    printf "</body></html>\n"
     break
   else
     close_table
