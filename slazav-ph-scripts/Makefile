@@ -1,4 +1,3 @@
-BINDIR=$(prefix)/bin
 INSTALL=/usr/bin/install
 
 DIRS={base,pd}
@@ -6,6 +5,8 @@ DIRS={base,pd}
 all:
 
 install:
+	mkdir -p -- $(bindir)
 	for i in $(DIRS)/*; do\
-	  $(INSTALL) -Dpm 755 "$$i" "$(BINDIR)/$${i##*/}";\
+	  [ "$${i##*/}" != Readme ] || continue;\
+	  $(INSTALL) -Dpm 755 "$$i" "$(bindir)/$${i##*/}";\
 	done
