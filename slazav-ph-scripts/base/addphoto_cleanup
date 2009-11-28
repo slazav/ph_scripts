@@ -56,11 +56,12 @@ files="$(printf " %s " "$files" | tr '\n' ' ')"
 for i in $(find "$base/" -maxdepth 1 -name '*.jpg' -not -name '_*'); do
   f="${i#$base/}"
   [ -n "${files##* $f *}" ] || continue
+  [ -n "${files##* ${f%.jpg} *}" ] || continue
 
   b="${i%.jpg}"
   for oth in $b.jpg $b.fig $b.htm $b.gif ${b%/*}_$b.jpg; do
     [ -f "$oth" ] || continue
-    echo "$oth"
+    echo "removing $oth"
     [ -n "$dr" ] || rm -f "$oth"
   done
 done
