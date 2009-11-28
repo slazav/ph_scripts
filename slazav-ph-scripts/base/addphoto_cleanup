@@ -53,8 +53,8 @@ files="$(LC_ALL=C sed -n -e '
    s/^\\photo[rl]\?[[:space:]]\+\([^[:space:]]\+\).*/\1/p' "$ifile")"
 files="$(printf " %s " "$files" | tr '\n' ' ')"
 
-for i in $(find "$base/" -name '*.jpg' -not -name '_*'); do
-  f="${i##*/}"
+for i in $(find "$base/" -maxdepth 1 -name '*.jpg' -not -name '_*'); do
+  f="${i#$base/}"
   [ -n "${files##* $f *}" ] || continue
 
   b="${i%.jpg}"
