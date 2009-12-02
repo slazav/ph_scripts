@@ -10,7 +10,7 @@ show_help()
 
 $PROG - photoalbum creation
 
-Usage: $PROG infile outfile
+Usage: $PROG infile > outfile
 
 Options:
     -h         display help screen
@@ -47,10 +47,9 @@ while :; do
   shift
 done
 
-[ "$#" = 2 ] || show_help
+[ "$#" = 1 ] || show_help
 
 ifile="$1"
-ofile="$2"
 [ -r "$ifile" ] || { printf "$ifile: can't find file\n"; exit 1; }
 
 base="${1%.*}"
@@ -168,6 +167,6 @@ EOF
     close_table
     printf "%s\n" "$line"
   fi
-done < "$ifile" > "$ofile"
-close_table >> "$ofile"
+done < "$ifile"
+close_table
 

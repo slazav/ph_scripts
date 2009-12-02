@@ -133,4 +133,4 @@ cat >> $file <<EOF
 </html>
 EOF
 
-addphoto "$file" "$dir.htm"
+addphoto "$file" > "$dir.htm"
