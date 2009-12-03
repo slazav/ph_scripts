@@ -1,13 +1,17 @@
 #!/usr/bin/perl -w
 use strict;
 
+# Print some data about photo
+# Here is only data than does not subject to changes when photo is editing
+# So there is no orientation or current image size here
+
 die "usage: $0 <file>\n" if $#ARGV<0;
 
 # get exif-data as a hash
 sub get_exif{
-  my $files=join(' ', @_);
+  my $file=shift;
   my %ret;
-  foreach (`exiv2 -Pkv $files 2>/dev/null`){
+  foreach (`exiv2 -Pkv $file 2>/dev/null`){
     chomp;
     my ($k, $v) = split(/\s+/,$_,2);
     $ret{$k}=$v;
@@ -15,35 +19,87 @@ sub get_exif{
   return %ret;
 }
 
+# convert some exif values to a more readable form
+sub exif_cnv{
+  my $dat=shift;
+  my $n;
+
+  # convert lat, lon, alt
+  $n='Exif.GPSInfo.GPSLatitude';
+  if ((exists $dat->{$n}) && ($dat->{$n}=~/^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(\d+)\/(\d+)/)){
+    $dat->{$n} = sprintf "%.7f", 1.0*$1/$2 + 1.0/60.0*$3/$4 + 1.0/3600.0*$5/$6;}
+  if ((exists $dat->{$n.'Ref'}) && ($dat->{$n.'Ref'}=~/^S/)) {$dat->{$n}=-$dat->{$n};}
+
+  $n='Exif.GPSInfo.GPSLongitude';
+  if ((exists $dat->{$n}) && ($dat->{$n}=~/^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(\d+)\/(\d+)/)){
+    $dat->{$n} = sprintf "%.7f", 1.0*$1/$2 + 1.0/60.0*$3/$4 + 1.0/3600.0*$5/$6;}
+  if ((exists $dat->{$n.'Ref'}) && ($dat->{$n.'Ref'}=~/^W/)) {$dat->{$n}=-$dat->{$n};}
+
+  $n='Exif.GPSInfo.GPSAltitude';
+  if ((exists $dat->{$n}) && ($dat->{$n}=~/^(\d+)\/(\d+)/)){
+    $dat->{$n} = sprintf "%.1f", 1.0*$1/$2;}
+  if ((exists $dat->{$n.'Ref'}) && ($dat->{$n.'Ref'}!=0)) {$dat->{$n}=-$dat->{$n};}
+
+  # convert dated 2009:10:20 10:11:12 -> 2009/10/20 10:11:12
+  foreach $n ('Exif.Image.DateTime',
+              'Exif.Photo.DateTimeOriginal'){
+    if ((exists $dat->{$n}) && ($dat->{$n} =~ /^(\d+):(\d+):(\d+)\s+(\d+):(\d+):(\d+)/)){
+      $dat->{$n} = "$1/$2/$3 $4:$5:$6";
+    }
+  }
+  # convert fractions to floating point values
+  foreach $n ('Exif.Photo.FNumber',
+              'Exif.Photo.FocalLength',
+              'Exif.Photo.ShutterSpeedValue',
+              'Exif.Photo.ApertureValue'){
+    if ((exists $dat->{$n}) && ($dat->{$n} =~ /(\d+)\/(\d+)/)){
+      $dat->{$n}= 1.0*$1/$2;
+    }
+  }
+}
+
 my $f=$ARGV[0];
 my %dat=get_exif($f);
+exif_cnv(\%dat);
 
 my $lat="";
-if ((exists $dat{'Exif.GPSInfo.GPSLatitude'}) &&
-    ($dat{'Exif.GPSInfo.GPSLatitude'}=~/^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(\d+)\/(\d+)/)){
-  $lat = 1.0*$1/$2 + 1.0/60.0*$3/$4 + 1.0/3600.0*$5/$6;}
-if ((exists $dat{'Exif.GPSInfo.GPSLatitudeRef'}) &&
-    ($dat{'Exif.GPSInfo.GPSLatitudeRef'}=~/^S/)) {$lat=-$lat;}
-print "exif_lat=\"$lat\"\n";
-
-
 my $lon="";
-if ((exists $dat{'Exif.GPSInfo.GPSLongitude'}) &&
-    ($dat{'Exif.GPSInfo.GPSLongitude'}=~/^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(\d+)\/(\d+)/)){
-  $lon = 1.0*$1/$2 + 1.0/60.0*$3/$4 + 1.0/3600.0*$5/$6;}
-if ((exists $dat{'Exif.GPSInfo.GPSLongitudeRef'}) &&
-    ($dat{'Exif.GPSInfo.GPSLongitudeRef'}=~/^S/)) {$lon=-$lon;}
-print "exif_lon=\"$lon\"\n";
-
 my $alt="";
-if ((exists $dat{'Exif.GPSInfo.GPSAltitude'}) &&
-    ($dat{'Exif.GPSInfo.GPSAltitude'}=~/^(\d+)\/(\d+)/)) {$alt=1.0*$1/$2;}
-if ((exists $dat{'Exif.GPSInfo.GPSAltitudeRef'}) &&
-    ($dat{'Exif.GPSInfo.GPSAltitudeRef'}!=0)) {$alt=-$alt;}
-print "exif_alt=\"$alt\"\n";
-
 my $date="";
-# if (exists $dat{'Exif.Image.DateTime'}) {$date=$dat{'Exif.Image.DateTime'};}
-if (exists $dat{'Exif.Photo.DateTimeOriginal'}) {$date=$dat{'Exif.Photo.DateTimeOriginal'};}
-print "exif_date=\"$date\"\n";
+my $model="";
+my $exposure_time="";
+my $exposure_bias="";
+my $focal_length="";
+my $fnumber="";
+
+my %exif_to_var=(
+  'Exif.GPSInfo.GPSLatitude'    => 'geo_lat',
+  'Exif.GPSInfo.GPSLongitude'   => 'geo_lon',
+  'Exif.GPSInfo.GPSAltitude'    => 'geo_alt',
+#  'Exif.Image.DateTime'         => 'date',
+  'Exif.Photo.DateTimeOriginal' => 'date',
+  'Exif.Image.Model'            => 'model',
+  'Exif.Photo.ExposureTime'     => 'exposure_time',
+  'Exif.Photo.ExposureBiasValue'=> 'exposure_bias',
+  'Exif.Photo.FocalLength'      => 'focal_length',
+  'Exif.Photo.FNumber'          => 'fnumber',
+#  'Exif.Photo.ShutterSpeedValue'=> 'shutter_speed',  # APEX units
+#  'Exif.Photo.ApertureValue'    => 'aperture_value', # APEX units
+  'Exif.Photo.Flash'            => 'flash',
+  'Exif.Photo.PixelXDimension'  => 'original_width',
+  'Exif.Photo.PixelYDimension'  => 'original_height',
+);
+
+my %values;
+# get values from exif
+foreach my $e ( keys %exif_to_var ){
+  my $v=$exif_to_var{$e};
+  $values{$v} = $dat{$e} if exists($dat{$e});
+}
+
+# print values
+foreach my $v ( sort keys %values ){
+  print "$v=\"$values{$v}\"\n";
+}
+
 
