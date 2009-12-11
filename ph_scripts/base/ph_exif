@@ -124,6 +124,20 @@ foreach my $e ( keys %exif_to_var ){
   $values{$v} = $dat{$e} if exists($dat{$e});
 }
 
+# get values from *.txt file
+my $txt=$f;
+$txt=~s/\.[^\.]+$//i;
+$txt .= ".txt";
+if (( -f "$txt" ) && (open IN, $txt)){
+  foreach(<IN>){
+    if (/^([0-9a-z_]+)(\*?)=(.*)$/){
+      $values{$1}=$3;
+    }
+  }
+  close IN;
+}
+
+
 # print values
 foreach my $v ( sort keys %values ){
   print "$v=\"$values{$v}\"\n";

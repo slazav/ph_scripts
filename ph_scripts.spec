@@ -1,4 +1,4 @@
-Name: slazav-ph-scripts
+Name: ph_scripts
 Version: 0.2
 Release: alt1
 Group: Graphics
@@ -6,12 +6,12 @@ License: GPL
 Packager: Vladislav Zavjalov <slazav@altlinux.org>
 BuildArch: noarch
 
-Summary: Scripts for digital photo handling
+Summary: Scripts for making html photoalbums and photo handling
 
 Source0: %name-%version.tar
 
 %description
-Scripts for digital photo handling
+Simple scripts for making html photoalbums and photo handling
 
 %prep
 %setup
