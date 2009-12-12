@@ -8,7 +8,7 @@ m3=5000
 sharpen=''
 quality='85'
 
-if [ "$#" -lt 3 -o "$#" -gt 5 ]; then
+if [ "$#" -lt 2 -o "$#" -gt 5 ]; then
 cat <<EOF
 
 ph_resize -- resize image smartly
