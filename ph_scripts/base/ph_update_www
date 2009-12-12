@@ -77,11 +77,11 @@ base="${1%.*}"
 
 print_exif2html(){
   eval "$(ph_exif "$1")"
-  [ -z "$date" ] ||
+  [ -z "${date:-}" ] ||
     printf "\n  <br/>Дата и время съемки: $date"
-  [ -z "$geo_alt"  ] ||
+  [ -z "${geo_alt:-}"  ] ||
     printf "\n  <br/>Высота: %d м" "${geo_alt%.*}"
-  [ -z "$geo_lat" -a -z "$geo_lon" ] ||
+  [ -z "${geo_lat:-}" -a -z "${geo_lon:-}" ] ||
     printf "\n  <br/>Координаты: %.7f %.7f" "$geo_lat" "$geo_lon"
 }
 
