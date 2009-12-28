@@ -114,11 +114,11 @@ verbose "$ifile";
 # fig2dev makes only transparent gifs but good transparancy
 # (for halo) can be done only in png files
 mfile=""
-[ ! -r "$base.fig" ] || mfile="${base}_m.png"
+[ ! -r "$base.fig" ] || mfile="${base}_m.gif"
 
 if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
   verbose "  creating marks";
-  gif_file="$(mktemp).gif" 
+  gif_file="$(mktemp).gif"
   LANG="$fig_lang" fig2dev -m2 -j -Lgif -D +0:200 -t'#FFFFFF' "$base.fig" "$gif_file"
 
   if [ -n "$halo" ]; then
