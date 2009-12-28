@@ -135,7 +135,11 @@ if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
 fi
 
 ## updating thumbnail
-tfile="${ifile%/*}/_${ifile##*/}"
+if [ "${ifile%/*}" != "$ifile" ]; then
+  tfile="${ifile%/*}/_${ifile##*/}"
+else
+  tfile="_${ifile##*/}"
+fi
 
 
 # create thumbnail if image have change
