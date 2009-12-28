@@ -122,12 +122,11 @@ if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
   LANG="$fig_lang" fig2dev -m2 -j -Lgif -D +0:200 -t'#FFFFFF' "$base.fig" "$gif_file"
 
   if [ -n "$halo" ]; then
-    mask_file="$(mktemp).png"
-    convert "$gif_file" -alpha extract -blur 0x1.7 -normalize "$mask_file"
-    convert "$gif_file" "$mask_file" +matte -compose CopyOpacity\
-      -composite +dither -colors 127 -channel A -contrast-stretch 0\
+    convert $gif_file \
+      \( "$gif_file" -alpha extract -blur 0x1.2 -normalize \) \
+      +matte -compose CopyOpacity -composite\
+      +dither -colors 127 -channel A -contrast-stretch 0\
       -resize 50% "$mfile"
-    rm -f -- "$mask_file"
   else
     convert "$gif_file" -resize 50% "$mfile"
   fi
