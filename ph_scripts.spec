@@ -1,5 +1,5 @@
 Name: ph_scripts
-Version: 0.2
+Version: 0.3
 Release: alt1
 Group: Graphics
 License: GPL
@@ -25,6 +25,29 @@ Simple scripts for making html photoalbums and photo handling
 %_bindir/*
 
 %changelog
+* Mon Dec 28 2009 Vladislav Zavjalov <slazav@altlinux.org> 0.3-alt1
+- renames
+- Makefile: fix installation
+- ph_update_www:
+  - add halo parameter
+  - antialiasing in marks
+  - name_m.png marks
+  - remove old-style gif marks
+  - fix work with files without paths
+  - fix work with unexistent fields
+- ph_resize:
+  - fix parameter checking
+- ph_exif:
+  - human readable Exif.Photo.Flash values
+  - more values
+- addphoto:
+  - add halo by default
+  - fix html closing at \\end command
+  - redirect output to stdout
+- addphoto_cleanup:
+  - treat index entries w/o extensions as a jpg-files
+  - remove files at depth=1 only
+
 * Fri Nov 13 2009 Vladislav Zavjalov <slazav@altlinux.org> 0.2-alt1
 - new scripts:
   pd_init, ph_canon_rename, ph_update_www, ph_exif,
