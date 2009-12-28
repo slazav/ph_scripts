@@ -123,9 +123,9 @@ if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
 
   if [ -n "$halo" ]; then
     mask_file="$(mktemp).png"
-    convert "$gif_file" -alpha extract -blur 0x1 "$mask_file"
+    convert "$gif_file" -alpha extract -blur 0x2 -normalize "$mask_file"
     convert "$gif_file" "$mask_file" +matte -compose CopyOpacity\
-      -composite +dither -colors 255 "$mfile"
+      -composite +dither -colors 127 -channel A -contrast-stretch 0 "$mfile"
     rm -f -- "$mask_file"
   else
     convert "$gif_file" "$mfile"
