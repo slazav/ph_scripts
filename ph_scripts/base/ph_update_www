@@ -134,6 +134,12 @@ if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
   rm -f -- "$gif_file"
 fi
 
+## removing old-style marks
+if [ -f "$base.gif" -a "$base.gif" != "$ifile" ]; then
+  echo "Removing old-style gif mark $base.gif" > /dev/stderr
+  rm -f -- "$base.gif"
+fi
+
 ## updating thumbnail
 if [ "${ifile%/*}" != "$ifile" ]; then
   tfile="${ifile%/*}/_${ifile##*/}"
