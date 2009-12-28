@@ -16,7 +16,7 @@ show_help()
 {
 	cat <<EOF
 
-$PROG - update html, gif and thumbnail for an image
+$PROG - update html, marks and thumbnail for an image
 
 Usage: $PROG [options] file
 
@@ -27,16 +27,16 @@ Options:
     -p <url>    url for "previous" reference
     -u <url>    url for "up" reference
     -n <url>    url for "next" reference
-    -H          make white halo on gif marks
+    -H          make white halo on marks
 
 Input files:
-  name.{jpg,png,tiff}  -- sourse image
-  name.fig             -- marks in fig format
+  name.{jpg,png,tiff,gif}  -- sourse image
+  name.fig                 -- marks in fig format
 
 Generated files:
-  _name.{jpg,png,tiff} -- thumbnail
-  name.gif             -- marks
-  name.htm             -- html
+  _name.{jpg,png,tiff,gif} -- thumbnail
+  name_m.png               -- marks
+  name.htm                 -- html
 
 Report bugs to <slazav@altlinux.org>
 EOF
@@ -108,31 +108,30 @@ th_marked(){
   [ "$(exiv2 -pc "$1" 2>/dev/null)" = "<marked>" ]
 }
 
-make_halo(){
-  [ -w "$1" ] || return 1
-  local orig_file="$(mktemp)"
-  local mask_file="$(mktemp)"
-  mv -- "$1" "$orig_file"
-  convert "GIF:$orig_file" -alpha extract -blur 0x1 "PNG:$mask_file"
-  convert "GIF:$orig_file" "PNG:$mask_file" +matte -compose CopyOpacity\
-    -composite +dither -colors 255 "$1"
-#  rm -f -- "$orig_file" "$mask_file"
-}
-
 verbose "$ifile";
 
-## updating GIF with marks
+## updating  marks
+# fig2dev makes only transparent gifs but good transparancy
+# (for halo) can be done only in png files
 mfile=""
-[ ! -r "$base.fig" ] || mfile="$base.gif"
-# if main image is *.gif -- don't do .gif marks
-[ "$mfile" != "$ifile" ] || mfile=""
+[ ! -r "$base.fig" ] || mfile="${base}_m.png"
 
 if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
-  verbose "  creating GIF with marks";
-  LANG="$fig_lang" fig2dev -j -Lgif -D +0:200 -t'#FFFFFF' "$base.fig" "$mfile"
-  [ -z "$halo" ] || make_halo "$mfile"
-fi
+  verbose "  creating marks";
+  gif_file="$(mktemp).gif" 
+  LANG="$fig_lang" fig2dev -j -Lgif -D +0:200 -t'#FFFFFF' "$base.fig" "$gif_file"
 
+  if [ -n "$halo" ]; then
+    mask_file="$(mktemp).png"
+    convert "$gif_file" -alpha extract -blur 0x1 "$mask_file"
+    convert "$gif_file" "$mask_file" +matte -compose CopyOpacity\
+      -composite +dither -colors 255 "$mfile"
+    rm -f -- "$mask_file"
+  else
+    convert "$gif_file" "$mfile"
+  fi
+  rm -f -- "$gif_file"
+fi
 
 ## updating thumbnail
 tfile="${ifile%/*}/_${ifile##*/}"
