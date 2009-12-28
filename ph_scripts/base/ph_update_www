@@ -27,6 +27,7 @@ Options:
     -p <url>    url for "previous" reference
     -u <url>    url for "up" reference
     -n <url>    url for "next" reference
+    -H          make white halo on gif marks
 
 Input files:
   name.{jpg,png,tiff}  -- sourse image
@@ -44,7 +45,7 @@ exit
 
 ##################################################
 
-opts="hvt:p:u:n:"
+opts="hvt:p:u:n:H"
 
 TEMP=`getopt -n "$PROG" -o $opts -- "$@"` || show_help
 eval set -- "$TEMP"
@@ -53,6 +54,8 @@ title=""
 purl=""
 uurl=""
 nurl=""
+halo=""
+
 while :; do
   case "$1" in
     -v) verbose=1 ;;
@@ -61,6 +64,7 @@ while :; do
     -p) purl="$2"; shift ;;
     -u) uurl="$2"; shift ;;
     -n) nurl="$2"; shift ;;
+    -H) halo=1 ;;
     --) shift; break ;;
   esac
   shift
@@ -104,6 +108,17 @@ th_marked(){
   [ "$(exiv2 -pc "$1" 2>/dev/null)" = "<marked>" ]
 }
 
+make_halo(){
+  [ -w "$1" ] || return 1
+  local orig_file="$(mktemp)"
+  local mask_file="$(mktemp)"
+  mv -- "$1" "$orig_file"
+  convert "GIF:$orig_file" -alpha extract -blur 0x1 "PNG:$mask_file"
+  convert "GIF:$orig_file" "PNG:$mask_file" +matte -compose CopyOpacity\
+    -composite +dither -colors 255 "$1"
+#  rm -f -- "$orig_file" "$mask_file"
+}
+
 verbose "$ifile";
 
 ## updating GIF with marks
@@ -115,6 +130,7 @@ mfile=""
 if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
   verbose "  creating GIF with marks";
   LANG="$fig_lang" fig2dev -j -Lgif -D +0:200 -t'#FFFFFF' "$base.fig" "$mfile"
+  [ -z "$halo" ] || make_halo "$mfile"
 fi
 
 
