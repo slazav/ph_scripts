@@ -59,7 +59,7 @@ for i in $(find "$base/" -maxdepth 1 -name '*.jpg' -not -name '_*'); do
   [ -n "${files##* ${f%.jpg} *}" ] || continue
 
   b="${i%.jpg}"
-  for oth in $b.jpg $b.fig $b.htm $b.gif ${b%/*}_$b.jpg; do
+  for oth in $b.jpg $b.fig $b.htm $b.gif ${b}_m.gif ${b%/*}_$b.jpg; do
     [ -f "$oth" ] || continue
     echo "removing $oth"
     [ -n "$dr" ] || rm -f "$oth"
