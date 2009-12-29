@@ -35,7 +35,7 @@ Input files:
 
 Generated files:
   _name.{jpg,png,tiff,gif} -- thumbnail
-  name_m.png               -- marks
+  name_m.gif               -- marks
   name.htm                 -- html
 
 Report bugs to <slazav@altlinux.org>
@@ -111,8 +111,6 @@ th_marked(){
 verbose "$ifile";
 
 ## updating  marks
-# fig2dev makes only transparent gifs but good transparancy
-# (for halo) can be done only in png files
 mfile=""
 [ ! -r "$base.fig" ] || mfile="${base}_m.gif"
 
@@ -121,14 +119,34 @@ if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
   gif_file="$(mktemp).gif"
   LANG="$fig_lang" fig2dev -m2 -j -Lgif -D +0:200 -t'#FFFFFF' "$base.fig" "$gif_file"
 
+  # IE can only show transparent gifs, not png. We can't use semi-transparent png here :(
   if [ -n "$halo" ]; then
-    convert $gif_file \
-      \( "$gif_file" -alpha extract -blur 0x1.2 -normalize \) \
-      +matte -compose CopyOpacity -composite\
-      +dither -colors 127 -channel A -contrast-stretch 0\
-      -resize 50% "$mfile"
+    convert\
+      \( "$ifile"\
+        \( "$gif_file" -alpha extract -blur 0x1.2 -threshold 15 -resize 50% \) \
+        +matte -compose copy-opacity -composite\
+      \) \
+      \( \
+        $gif_file \
+        \( "$gif_file" -alpha extract -blur 0x1.2 -normalize \) \
+        +matte -compose copy-opacity -composite\
+        -resize 50%\
+      \) \
+      -compose over -composite\
+      -quantize transparent \
+      +dither -colors 255 -channel A -contrast-stretch 0\
+      "$mfile"
   else
-    convert "$gif_file" -resize 50% "$mfile"
+    convert\
+      \( "$ifile"\
+        \( "$gif_file" -alpha extract -blur 0x0.8 -threshold 15 -resize 50% \) \
+        +matte -compose copy-opacity -composite\
+      \) \
+      \( "$gif_file" -resize 50% \)\
+      -compose over -composite\
+      -quantize transparent \
+      +dither -colors 255 -channel A -contrast-stretch 0\
+       "$mfile"
   fi
   rm -f -- "$gif_file"
 fi
