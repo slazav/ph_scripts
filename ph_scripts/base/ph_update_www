@@ -108,13 +108,12 @@ th_marked(){
   [ "$(exiv2 -pc "$1" 2>/dev/null)" = "<marked>" ]
 }
 
-verbose "$ifile";
+make_mark(){
+  local halo="$1"; shift
+  local base="$1"; shift
+  local ifile="$1"; shift
+  local mfile="$1"; shift
 
-## updating  marks
-mfile=""
-[ ! -r "$base.fig" ] || mfile="${base}_m.gif"
-
-if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
   verbose "  creating marks";
   gif_file="$(mktemp).gif"
   LANG="$fig_lang" fig2dev -m2 -j -Lgif -D +0:200 -t'#FFFFFF' "$base.fig" "$gif_file"
@@ -165,6 +164,15 @@ if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
 # "$mfile"
 
   rm -f -- "$gif_file"
+}
+
+verbose "$ifile";
+
+## updating  marks
+mfile=""
+[ ! -r "$base.fig" ] || mfile="${base}_m.gif"
+if [ -n "$mfile" -a "$mfile" -ot "$base.fig" ]; then
+  make_mark "$halo" "$base" "$ifile" "$mfile"
 fi
 
 ## removing old-style marks
