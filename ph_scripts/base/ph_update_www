@@ -38,6 +38,12 @@ Generated files:
   name_m.gif or name_m.png -- marks
   name.htm                 -- html
 
+Mark styles:
+  simple_gif
+  aa_gif
+  aa_gif_halo
+  aa_gif_dark_halo
+
 Report bugs to <slazav@altlinux.org>
 EOF
 exit
@@ -138,26 +144,6 @@ make_mark(){
         +dither -colors 255 -channel A -contrast-stretch 0\
         "$mfile"
     ;;
-    aa_gif_dark_halo)
-      convert\
-        \( "$ifile"\
-          \( "$gif_file" -alpha extract -blur 0x1.2 -threshold 15 -resize 50% \) \
-          +matte -compose copy-opacity -composite\
-        \) \
-        \( \
-          "$gif_file" +level 0,30%\
-          \( -clone 0 +matte +level-colors white \
-            \( -clone 0 -alpha extract -blur 4x3 -level 0%,50% \)\
-            +matte -compose copy-opacity -composite \
-          \) \
-          -compose dst-over -composite\
-          -resize 50%\
-        \) \
-        -compose over -composite\
-        -quantize transparent \
-        +dither -colors 255 -channel A -contrast-stretch 0\
-        "$mfile"
-    ;;
     aa_gif_halo)
       convert\
         \( "$ifile"\
@@ -178,8 +164,28 @@ make_mark(){
         +dither -colors 255 -channel A -contrast-stretch 0\
         "$mfile"
     ;;
+    aa_gif_dark_halo)
+      convert\
+        \( "$ifile"\
+          \( "$gif_file" -alpha extract -blur 0x1.2 -threshold 15 -resize 50% \) \
+          +matte -compose copy-opacity -composite\
+        \) \
+        \( \
+          "$gif_file" +level 0,30%\
+          \( -clone 0 +matte +level-colors white \
+            \( -clone 0 -alpha extract -blur 4x3 -level 0%,50% \)\
+            +matte -compose copy-opacity -composite \
+          \) \
+          -compose dst-over -composite\
+          -resize 50%\
+        \) \
+        -compose over -composite\
+        -quantize transparent \
+        +dither -colors 255 -channel A -contrast-stretch 0\
+        "$mfile"
+    ;;
   esac
-  # 8.55 png_dark_halo
+#  png_dark_halo
 #  convert\
 #        "$gif_file" +level 0,30%\
 #        \( -clone 0 +matte +level-colors white \
