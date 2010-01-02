@@ -16,6 +16,7 @@ Options:
     -h         display help screen
     -v         be more verbose
     -s         don't update files
+    -m         mark style (see ph_update_www -h)
 
 Input file syntax:
 
@@ -31,12 +32,12 @@ exit
 
 ##################################################
 
-opts="hvs"
+opts="hvsm:"
 
 TEMP=`getopt -n "$PROG" -o $opts -- "$@"` || show_help
 eval set -- "$TEMP"
 
-halo=1
+mstyle=
 
 skip_files=
 while :; do
@@ -44,6 +45,7 @@ while :; do
     -v) verbose=1 ;;
     -h) show_help ;;
     -s) skip_files=1 ;;
+    -m) mstyle=$1; shift ;;
     --) shift; break ;;
   esac
   shift
@@ -114,7 +116,7 @@ if [ -z "$skip_files" ]; then
 
     if [ ! -f "$base/$file" ] ;then [ ! -f "$base/$file.jpg" ] || file="$file.jpg"; fi
 
-    ph_update_www ${verbose:+-v} ${halo:+-H} -t "$title" -p "$purl" -u "$uurl" -n "$nurl" "$base/$file"
+    ph_update_www ${verbose:+-v} ${mstyle:+-m $mstyle} -t "$title" -p "$purl" -u "$uurl" -n "$nurl" "$base/$file"
 #    echo "$file $title"
   done <<EOF
   $images
