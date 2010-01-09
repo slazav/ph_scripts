@@ -250,9 +250,9 @@ w="${s%% *}"
 h="${s##* }"
 
 # make navigation panel
-[ -z "$purl" ] || purl="<a href=\"$purl\">предыдущая</a>"
+[ -z "$purl" ] || purl="<a href=\"$purl\">&lt;&lt; предыдущая</a>"
 [ -z "$uurl" ] || uurl="<a href=\"$uurl\">к оглавлению</a>"
-[ -z "$nurl" ] || nurl="<a href=\"$nurl\">следующая</a>"
+[ -z "$nurl" ] || nurl="<a href=\"$nurl\">следующая &gt;&gt;</a>"
 
 nav=""
 [ -z "$purl" -a -z "$uurl" -a -z "$nurl" ] ||
