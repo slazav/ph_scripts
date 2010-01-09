@@ -88,11 +88,11 @@ base="${1%.*}"
 print_exif2html(){
   eval "$(ph_exif "$1")"
   [ -z "${date:-}" ] ||
-    printf "\n  <br/>Дата и время съемки: $date"
+    printf "\n      <br/>Дата и время съемки: $date"
   [ -z "${geo_alt:-}"  ] ||
-    printf "\n  <br/>Высота: %d м" "${geo_alt%.*}"
+    printf "\n      <br/>Высота: %d м" "${geo_alt%.*}"
   [ -z "${geo_lat:-}" -o -z "${geo_lon:-}" ] ||
-    printf "\n  <br/>Координаты: %.7f %.7f" "$geo_lat" "$geo_lon"
+    printf "\n      <br/>Координаты: %.7f %.7f" "$geo_lat" "$geo_lon"
 }
 
 filter_text(){
@@ -241,6 +241,7 @@ else
   fi
 fi
 
+######################################################################
 ## creating html
 verbose "  creating html";
 alttitle="$(filter_text "$title")"
@@ -249,62 +250,91 @@ s="$(ph_size $ifile)"
 w="${s%% *}"
 h="${s##* }"
 
-# make navigation panel
-[ -z "$purl" ] || purl="<a href=\"$purl\">&lt;&lt; предыдущая</a>"
-[ -z "$uurl" ] || uurl="<a href=\"$uurl\">к оглавлению</a>"
-[ -z "$nurl" ] || nurl="<a href=\"$nurl\">следующая &gt;&gt;</a>"
+sty="a {text-decoration: none;}"
+top=""
+btm=""
+scr=""
 
-nav=""
-[ -z "$purl" -a -z "$uurl" -a -z "$nurl" ] ||
-nav="
-  <p><table width=\"100%\"><tr>
-  <td align=left>$purl</td>
-  <td align=center>$uurl</td>
-  <td align=right>$nurl</td>
-  </tr></table></p>"
+# make navigation panel
+if [ -n "$purl" -o -n "$uurl" -o -n "$nurl" ]; then
+  [ -z "$purl" ] || purl="<a href=\"$purl\">&lt;&lt; предыдущая</a>"
+  [ -z "$uurl" ] || uurl="<a href=\"$uurl\">к оглавлению</a>"
+  [ -z "$nurl" ] || nurl="<a href=\"$nurl\">следующая &gt;&gt;</a>"
+  top="$top
+    <table class=nav><tr>
+      <td align=left>$purl</td>
+      <td align=center>$uurl</td>
+      <td align=right>$nurl</td>
+    </tr></table>"
+  sty="$sty
+      .nav { font: bold 10pt sans-serif; width: 100%;
+             margin-bottom: 10px; border-bottom: 1px solid #E0E0E0}"
+fi
+
+# make title
+if [ -n "$title" ]; then
+  top="$top
+    <p class=title>$title</p>"
+  sty="$sty
+      .title { font: 16pt sans-serif; text-align: center; margin: 5px}"
+fi
+
+# make exif info
+btm="$btm
+    <div class=exif>$(print_exif2html "$ifile")
+    </div>"
+sty="$sty
+      .exif { font: bold 8pt sans-serif;}"
 
 # make javascript for switching marks
-mark_scr=""
-mark_sty=""
-mark_nav=""
 image="
     <img src=\"${ifile##*/}\" width=\"$w\" height=\"$h\" alt=\"$alttitle\">"
 
 if [ -n "$mfile" ]; then
-  mark_scr="
-    <script language=\"JavaScript\">
+  scr="$scr
     function update_vis(){
       document.getElementById(\"marks\").style.visibility=
         document.forms[0].elements[0].checked?'visible':'hidden'}
     function sw_marks(){
       document.forms[0].elements[0].checked=
-        !document.forms[0].elements[0].checked}
-    </script>"
+        !document.forms[0].elements[0].checked}"
 
-  mark_sty="
-    <style type=\"TEXT/CSS\">
+  sty="$sty
       #image { position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px; }
       #marks { position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: visible; }
-    </style>"
-  mark_nav="
-    <form><input type=\"checkbox\" checked onclick=\"update_vis()\">
-    Рисовать пометки (для переключения щелкните мышью по картинке)</form>"
+      .mrk { font: 8pt sans-serif; text-align: right; }"
+  btm="$btm
+    <form class=mrk>для переключения подписей щелкните мышью по картинке
+    <input type=\"checkbox\" checked onclick=\"update_vis()\"></form>"
   image="
-    <p><div style=\"position: relative; height: ${h}px;\" onclick=\"sw_marks(); update_vis()\">
-      <img id=\"image\" src=\"${ifile##*/}\" alt=\"$alttitle\">
-      <img id=\"marks\" src=\"${mfile##*/}\">
-      </div></p>"
+      <div style=\"position: relative; height: ${h}px;\" onclick=\"sw_marks(); update_vis()\">
+        <img id=\"image\" src=\"${ifile##*/}\" alt=\"$alttitle\">
+        <img id=\"marks\" src=\"${mfile##*/}\">
+      </div>"
+fi
+
+
+if [ -n "$sty" ]; then
+  sty="
+    <style type=\"TEXT/CSS\">$sty
+    </style>"
+fi
+
+if [ -n "$scr" ]; then
+  scr="
+    <script language=\"JavaScript\">$scr
+    </script>"
 fi
 
 cat > $base.htm << EOF
 <html>
   <head><title>$alttitle</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=$charset">$mark_scr$mark_sty
+    <meta http-equiv="Content-Type" content="text/html;
+          charset=$charset">$scr$sty
   </head>
-  <body bgcolor="#FFFFFF">$nav$mark_nav
-    <div align=left width=$w>
-      <p><font size="+2">$title</font></p>$image
-    </div>$(print_exif2html "$ifile")
+  <body bgcolor="#FFFFFF">$top
+    <div style="overflow:auto; margin: 5px">$image
+    </div>$btm
   </body>
 </html>
 EOF
