@@ -88,11 +88,11 @@ base="${1%.*}"
 print_exif2html(){
   eval "$(ph_exif "$1")"
   [ -z "${date:-}" ] ||
-    printf "\n      <br/>Дата и время съемки: $date"
+    printf "\n      Дата и время съемки: $date<br/>"
   [ -z "${geo_alt:-}"  ] ||
-    printf "\n      <br/>Высота: %d м" "${geo_alt%.*}"
+    printf "\n      Высота: %d м<br/>" "${geo_alt%.*}"
   [ -z "${geo_lat:-}" -o -z "${geo_lon:-}" ] ||
-    printf "\n      <br/>Координаты: %.7f %.7f" "$geo_lat" "$geo_lon"
+    printf "\n      Координаты: %.7f %.7f<br/>" "$geo_lat" "$geo_lon"
 }
 
 filter_text(){
@@ -267,24 +267,18 @@ if [ -n "$purl" -o -n "$uurl" -o -n "$nurl" ]; then
       <td align=right>$nurl</td>
     </tr></table>"
   sty="$sty
-      .nav { font: bold 10pt sans-serif; width: 100%;
-             margin-bottom: 10px; border-bottom: 1px solid #E0E0E0}"
+      .nav { font: bold 10pt sans-serif; width: 100%}"
 fi
 
 # make title
 if [ -n "$title" ]; then
-  top="$top
-    <p class=title>$title</p>"
+  btm="$btm
+    <div class=title>$title</div>"
   sty="$sty
-      .title { font: 16pt sans-serif; text-align: center; margin: 5px}"
+      .title { font: 16pt sans-serif;
+               margin: 0px; padding-bottom: 20px;
+               border-bottom: 1px solid #E0E0E0; width: 100%}"
 fi
-
-# make exif info
-btm="$btm
-    <div class=exif>$(print_exif2html "$ifile")
-    </div>"
-sty="$sty
-      .exif { font: bold 8pt sans-serif;}"
 
 # make javascript for switching marks
 image="
@@ -304,14 +298,21 @@ if [ -n "$mfile" ]; then
       #marks { position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: visible; }
       .mrk { font: 8pt sans-serif; text-align: right; }"
   btm="$btm
-    <form class=mrk>для переключения подписей щелкните мышью по картинке
-    <input type=\"checkbox\" checked onclick=\"update_vis()\"></form>"
+    <table align=right class=mrk><tr><td><form>для переключения подписей щелкните мышью по картинке
+      <input type=\"checkbox\" checked onclick=\"update_vis()\"></form></td></tr></table>"
   image="
       <div style=\"position: relative; height: ${h}px;\" onclick=\"sw_marks(); update_vis()\">
         <img id=\"image\" src=\"${ifile##*/}\" alt=\"$alttitle\">
         <img id=\"marks\" src=\"${mfile##*/}\">
       </div>"
 fi
+
+# make exif info
+btm="$btm
+    <div class=exif>$(print_exif2html "$ifile")
+    </div>"
+sty="$sty
+      .exif { font: bold 8pt sans-serif;}"
 
 
 if [ -n "$sty" ]; then
@@ -330,7 +331,7 @@ cat > $base.htm << EOF
 <html>
   <head><title>$alttitle</title>
     <meta http-equiv="Content-Type" content="text/html;
-          charset=$charset">$scr$sty
+          charset=$charset"/>$scr$sty
   </head>
   <body bgcolor="#FFFFFF">$top
     <div style="overflow:auto; margin: 5px">$image
