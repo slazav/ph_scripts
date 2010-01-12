@@ -225,14 +225,14 @@ fi
 # create thumbnail if image have change
 if [ "$tfile" -ot "$ifile" ]; then
   verbose " creating thumbnail"
-  ph_resize $ifile $tfile 200 100 600
+  ph_resize $ifile $tfile 200 100 600 1>&2
 fi
 
 if th_marked "$tfile"; then
   # remove marked thumbnail if we have no marks
   if [ -z "$mfile" ]; then
     verbose " removing marked thumbnail"
-    ph_resize $ifile $tfile 200 100 600
+    ph_resize $ifile $tfile 200 100 600 1>&2
   fi
 else
   if [ -n "$mfile" ]; then
