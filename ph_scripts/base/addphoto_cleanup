@@ -15,6 +15,7 @@ Usage: $PROG indexfile
 Options:
     -h         display help screen
     -v         be more verbose
+    -f         don't ask before removing files
     -d         dry run: only list files to be removed
 
 Report bugs to <slazav@altlinux.org>
@@ -24,17 +25,19 @@ exit
 
 ##################################################
 
-opts="hvd"
+opts="hvdf"
 
 TEMP=`getopt -n "$PROG" -o $opts -- "$@"` || show_help
 eval set -- "$TEMP"
 
 dr=
+fr=
 while :; do
   case "$1" in
     -v) verbose=1 ;;
     -h) show_help ;;
     -d) dr=1 ;;
+    -f) fr=1 ;;
     --) shift; break ;;
   esac
   shift
@@ -53,6 +56,9 @@ files="$(LC_ALL=C sed -n -e '
    s/^\\photo[rl]\?[[:space:]]\+\([^[:space:]]\+\).*/\1/p' "$ifile")"
 files="$(printf " %s " "$files" | tr '\n' ' ')"
 
+toremove=''
+n=0
+
 for i in $(find "$base/" -maxdepth 1 -name '*.jpg' -not -name '_*'); do
   f="${i#$base/}"
   [ -n "${files##* $f *}" ] || continue
@@ -61,8 +67,25 @@ for i in $(find "$base/" -maxdepth 1 -name '*.jpg' -not -name '_*'); do
   b="${i%.jpg}"
   for oth in $b.jpg $b.fig $b.htm $b.gif ${b}_m.gif ${b%/*}_$b.jpg; do
     [ -f "$oth" ] || continue
-    echo "removing $oth"
-    [ -n "$dr" ] || rm -f "$oth"
+    toremove="$toremove  $oth
+"
+    n="$(($n+1))"
   done
 done
 
+[ "$n" != 0 ] || exit 0
+
+if [ -z "$fr" ]; then
+  echo "$toremove"
+  if [ -z "$dr" ]; then
+    echo -n "Remove these files (y|N)? "
+    read ans
+    [ "$ans" = "y" -o "$ans" = "Y" ] || dr=1
+  fi
+fi
+
+if [ -z "$dr" ]; then
+  for i in $toremove; do
+    rm -f "$i"
+  done
+fi
