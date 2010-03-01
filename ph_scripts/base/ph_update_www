@@ -23,6 +23,7 @@ Usage: $PROG [options] file
 Options:
     -h,         display help screen
     -v,         be more verbose
+    -g          href's to maps.google.com
     -t <title>  set image title
     -p <url>    url for "previous" reference
     -u <url>    url for "up" reference
@@ -51,11 +52,12 @@ exit
 
 ##################################################
 
-opts="hvt:p:u:n:m:"
+opts="hvgt:p:u:n:m:"
 
 TEMP=`getopt -n "$PROG" -o $opts -- "$@"` || show_help
 eval set -- "$TEMP"
 
+google=""
 title=""
 purl=""
 uurl=""
@@ -66,6 +68,7 @@ while :; do
   case "$1" in
     -v) verbose=1 ;;
     -h) show_help ;;
+    -g) google=1  ;;
     -t) title="$2"; shift ;;
     -p) purl="$2"; shift ;;
     -u) uurl="$2"; shift ;;
@@ -95,8 +98,14 @@ print_exif2html(){
     printf "\n      Дата и время съемки: $date<br/>"
   [ -z "${geo_alt:-}"  ] ||
     printf "\n      Высота: %d м<br/>" "${geo_alt%.*}"
-  [ -z "${geo_lat:-}" -o -z "${geo_lon:-}" ] ||
-    printf "\n      Координаты: %.7f %.7f<br/>" "$geo_lat" "$geo_lon"
+  if [ -n "${geo_lat:-}" -a -n "${geo_lon:-}" ]; then
+    [ -z "$google" ] &&
+      printf "\n      Координаты: %.7f %.7f<br/>" "$geo_lat" "$geo_lon" ||
+      printf "\n      Координаты: \
+<a href=\"http://maps.google.com?t=h&output=embed&q=%.7f+%.7f&ll=%.7f,%.7f&z=13\">\
+%.7f %.7f</a><br/>"\
+           "$geo_lat" "$geo_lon" "$geo_lat" "$geo_lon" "$geo_lat" "$geo_lon"
+  fi
 }
 
 filter_text(){

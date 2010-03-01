@@ -38,6 +38,7 @@ TEMP=`getopt -n "$PROG" -o $opts -- "$@"` || show_help
 eval set -- "$TEMP"
 
 mstyle=
+google=1
 
 skip_files=
 while :; do
@@ -116,7 +117,7 @@ if [ -z "$skip_files" ]; then
 
     if [ ! -f "$base/$file" ] ;then [ ! -f "$base/$file.jpg" ] || file="$file.jpg"; fi
 
-    ph_update_www ${verbose:+-v} ${mstyle:+-m $mstyle} -t "$title" -p "$purl" -u "$uurl" -n "$nurl" "$base/$file"
+    ph_update_www ${verbose:+-v} ${google:+-g} ${mstyle:+-m $mstyle} -t "$title" -p "$purl" -u "$uurl" -n "$nurl" "$base/$file"
 #    echo "$file $title"
   done <<EOF
   $images
