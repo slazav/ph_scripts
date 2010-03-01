@@ -119,9 +119,13 @@ th_marked(){
 }
 
 fig_im_size(){
+
+  local ifile_q="$(printf %s "$ifile" |
+    sed -e 's/[].*&^$[\/]/\\&/g')" ||:
+
   local fig="$base.fig"
   sed -n "
-    /^[[:space:]]\+[0-9]\+[[:space:]]\+$ifile/!b; n
+    /^[[:space:]]\+[0-9]\+[[:space:]]\+$ifile_q/!b; n
     s/^\([[:space:]]\+[0-9]\+\)\{4\}[[:space:]]\+\([0-9]\+\)[[:space:]]\+\([0-9]\+\).*/\2 \3/p; q
   " "$fig"
 }
