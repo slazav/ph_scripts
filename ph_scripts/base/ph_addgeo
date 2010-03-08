@@ -20,7 +20,8 @@ foreach(<T>){
   next unless ($#pt_data==5) || ($#pt_data==6);
   my $alt = $pt_data[3]*0.3048;
   my $t   = int($pt_data[4]*24*3600 - 2209161600 + 3600*$tshift);
-  push @data, {lat => $pt_data[0], lon => $pt_data[1], alt => $alt, t => $t};
+  push @data, {lat => $pt_data[0], lon => $pt_data[1], alt => $alt,
+               t => $t, start => $pt_data[2]};
 }
 
 foreach (@ARGV){
@@ -41,7 +42,7 @@ foreach (@ARGV){
     my $t1 = $data[$i]->{t};
     my $t2 = $data[$i+1]->{t};
 
-    if (($t1 <= $t) && ($t2 > $t)){
+    if (($t1 <= $t) && ($t2 > $t) && ($data[$i+1]->{start}==0)){
 
       my $lat1 = $data[$i]->{lat};
       my $lat2 = $data[$i+1]->{lat};
@@ -49,6 +50,7 @@ foreach (@ARGV){
       my $lon2 = $data[$i+1]->{lon};
       my $alt1 = $data[$i]->{alt};
       my $alt2 = $data[$i+1]->{alt};
+
       if ($alt1<-1000) {$alt1=$alt2;}
       if ($alt2<-1000) {$alt2=$alt1;}
       my $k = ($t-$t1)/($t2-$t1);
