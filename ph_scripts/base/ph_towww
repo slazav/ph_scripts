@@ -26,9 +26,11 @@ for i in $@; do
     printf "%-20s skipping\n" "$i"
     continue
   fi
+  mode="$(stat -c %a "$i")"
   ph_resize "$i" "$tempfile" || cp -f "$i" "$tempfile"
   exiv2 -d t "$tempfile" ||:
   mv -f "$tempfile" "$i"
+  chmod -- "$mode" "$i"
 done
 
 rm -f "$tempfile"
