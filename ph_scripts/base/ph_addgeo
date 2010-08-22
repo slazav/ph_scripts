@@ -25,11 +25,12 @@ foreach(<T>){
 }
 
 foreach (@ARGV){
-  my $date = `exiv2 -pv $_ | grep '^$dfn'`;
+  print "\n$_";
+  my $date = `exiv2 -pv $_ | grep -a -- '^$dfn'`;
   next unless ($date=~/^.*\s+(\d+):(\d+):(\d+)\s+(\d+:\d+:\d+)$/);
   $date = "$1-$2-$3 $4";
   my $t = `date -d '$date' +%s`;
-  print "\n$_ $date";
+  print " $date";
   my $args=
     "-M 'del Exif.GPSInfo.GPSLatitudeRef' " .
     "-M 'del Exif.GPSInfo.GPSLongitudeRef' " .
