@@ -5,11 +5,12 @@ base="bat"
 n=1
 
 t(){
-  local n=$1
+  local n="$1"
   shift
-  [ -s "$base$n.fig" ] || ln -s -- "$base.fig" "$base$n.fig"
-  [ -s "$base$n.jpg" ] || ln -s -- "$base.jpg" "$base$n.jpg"
-  rm -f -- "$base${n}_m.gif"
+  cp -f -- "$base.fig" "$base$n.fig"
+  cp -f -- "$base.jpg" "$base$n.jpg"
+  sed -i -e "s|$base.jpg|$base$n.jpg|" "$base$n.fig"
+  rm -f -- "$base${n}_m.gif" "$base${n}_m.png"
   echo ">>> ph_update_www $* $base$n.jpg"
   time ../ph_update_www "$@" "$base$n.jpg"
 }
