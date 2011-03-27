@@ -1,36 +1,106 @@
 #!/usr/bin/perl -w
-use strict;
 
-# Add geodata from OziExplorer plt file to exif
+use strict;
+use Getopt::Long qw(GetOptions);
+
+my $tshift=0;
+my $txt_file='.geodata.txt';
+my $plt_file;
+my $verbose=0;
+my $maxdist=200;
+my $maxtime=0;
+
+GetOptions(
+  "s|shift=f"    => \$tshift,
+  "t|track=s"    => \$plt_file,
+  "f|datafile=s" => \$txt_file,
+  "v|verbose"    => \$verbose,
+  "D|maxdist=f"  => \$maxdist,
+  "M|maxtime=f"  => \$maxtime,
+)
+and ( my @files = @ARGV)
+or die qq*$0 -- put geo information from Ozi plt file to exif.
+usage: [<options>] <jpeg files>
+options:
+  -t --track    -- plt track file;
+  -s --shift    -- time shift (hours), default 0;
+  -f --datafile -- datafile, default .geodata.txt;
+  -v --verbose  -- be more verbose.
+  -D --maxdist  -- max distance between interpolated points, m (default: 200)
+  -M --maxtime  -- max time between interpolated points, s (devault: none)
+*;
 
 my $dfn="0x9003";
 #my $dfn="0x0132";
 
-die "useage: $0 <time shift> <plt track-file> <jpg files>\n" if ($#ARGV<1);
 
-my $tshift    = shift @ARGV;
-my $plt_track = shift @ARGV;
-
-open T, "$plt_track" or die "can't open $plt_track\n";
-
-my @data;
-
-foreach(<T>){
-  my @pt_data = split /,/;
-  next unless ($#pt_data==5) || ($#pt_data==6);
-  my $alt = $pt_data[3]*0.3048;
-  my $t   = int($pt_data[4]*24*3600 - 2209161600 + 3600*$tshift);
-  push @data, {lat => $pt_data[0], lon => $pt_data[1], alt => $alt,
-               t => $t, start => $pt_data[2]};
+### read plt file
+my @plt_data;
+if ($plt_file){
+  print STDERR "Getting geodata from track (time shift: ${tshift}h)...\n" if $verbose;
+  open T, $plt_file or die "can't open $plt_file\n";
+  foreach(<T>){
+    my @pt_data = split /,/;
+    next unless ($#pt_data==5) || ($#pt_data==6);
+    my $alt = $pt_data[3]*0.3048;
+    my $t   = int($pt_data[4]*24*3600 - 2209161600 + 3600*$tshift);
+    push @plt_data, {
+      lat => $pt_data[0], lon => $pt_data[1], alt => $alt,
+      t => $t, start => $pt_data[2]
+    };
+  }
+  close T;
+  printf STDERR "Done, %i points processed.\n",
+    scalar(@plt_data) if $verbose;
 }
 
-foreach (@ARGV){
-  print "\n$_";
-  my $date = `exiv2 -pv $_ | grep -a -- '^$dfn'`;
-  next unless ($date=~/^.*\s+(\d+):(\d+):(\d+)\s+(\d+:\d+:\d+)$/);
-  $date = "$1-$2-$3 $4";
-  my $t = `date -d '$date' +%s`;
-  print " $date";
+### read txt datafile
+my %txt_data;
+if (open T, $txt_file){
+  print STDERR "Getting geodata from txt datafile ($txt_file)...\n" if $verbose;
+  foreach(<T>){
+    next if /^\s*#/;
+    my @pt_data = split /\s+/;
+    if (scalar(@pt_data) >= 4){
+      $txt_data{$pt_data[0]} = {
+        lat => $pt_data[1], lon => $pt_data[2], alt => $pt_data[3]
+      };
+    }
+    else {
+      $txt_data{$pt_data[0]} = 0;
+    }
+  }
+  close T;
+  printf STDERR "Done, %i lines processed.\n",
+    scalar(keys %txt_data) if $verbose;
+}
+
+
+### get file list with time values
+print STDERR "Getting time values from files...\n" if $verbose;
+my %file_data;
+foreach my $name (@files){
+  next unless -f $name;
+  next unless `exiv2 -pv $name | grep -a -- '^$dfn'` =~
+              /^.*\s+(\d+):(\d+):(\d+)\s+(\d+:\d+:\d+)$/;
+  my $th = "$1-$2-$3 $4";         # human readable time
+  my $ts = `date -d '$th' +%s`; # time in seconds
+  chomp $ts;
+  $file_data{$name} = {
+    ts=> $ts, th=> $th
+  };
+}
+printf STDERR "Done, %i/%i files processed.\n",
+   scalar(keys %txt_data), scalar(@files) if $verbose;
+
+
+print STDERR "Processing files...\n" if $verbose;
+my $n=0;
+foreach (sort keys %file_data){
+  my $name = $_;
+  my $ts   = $file_data{$_}->{ts};
+  my $th   = $file_data{$_}->{th};
+
   my $args=
     "-M 'del Exif.GPSInfo.GPSLatitudeRef' " .
     "-M 'del Exif.GPSInfo.GPSLongitudeRef' " .
@@ -39,49 +109,90 @@ foreach (@ARGV){
     "-M 'del Exif.GPSInfo.GPSAltitudeRef' " .
     "-M 'del Exif.GPSInfo.GPSAltitude' ";
 
-  for (my $i=0; $i<$#data; $i++){
-    my $t1 = $data[$i]->{t};
-    my $t2 = $data[$i+1]->{t};
+  printf "%-20s", $name if $verbose;
 
-    if (($t1 <= $t) && ($t2 > $t) && ($data[$i+1]->{start}==0)){
+  # add data from plt
+  if ($plt_file && (!$txt_data{$name})){
+    for (my $i=0; $i<$#plt_data; $i++){
+      my $t1 = $plt_data[$i]->{t};
+      my $t2 = $plt_data[$i+1]->{t};
 
-      my $lat1 = $data[$i]->{lat};
-      my $lat2 = $data[$i+1]->{lat};
-      my $lon1 = $data[$i]->{lon};
-      my $lon2 = $data[$i+1]->{lon};
-      my $alt1 = $data[$i]->{alt};
-      my $alt2 = $data[$i+1]->{alt};
+      next if $maxtime && (abs($t1 - $t2) > $maxtime);
+      next unless ($t1 <= $ts) && ($ts < $t2);
+
+      my $lat1 = $plt_data[$i]->{lat};
+      my $lat2 = $plt_data[$i+1]->{lat};
+      my $lon1 = $plt_data[$i]->{lon};
+      my $lon2 = $plt_data[$i+1]->{lon};
+      my $alt1 = $plt_data[$i]->{alt};
+      my $alt2 = $plt_data[$i+1]->{alt};
+
+      my $dist = sqrt(($lat2-$lat1)**2 +
+                      (($lon2-$lon1)*cos(3.1415926/180.0*($lat2+$lat1)/2.0))**2);
+      $dist *= 3.1415926/180.0 * 6138000.0;
+      next if $maxdist && ($dist > $maxdist);
 
       if ($alt1<-1000) {$alt1=$alt2;}
       if ($alt2<-1000) {$alt2=$alt1;}
-      my $k = ($t-$t1)/($t2-$t1);
+      my $k = ($ts-$t1)/($t2-$t1);
       my $lat = $lat1 + ($lat2-$lat1)*$k;
       my $lon = $lon1 + ($lat2-$lat1)*$k;
       my $alt = $alt1 + ($alt2-$alt1)*$k;
-
-      print " $lat $lon $alt ";
-
-      my $lat_r = $lat<0? 'S':'N'; $lat=abs($lat);
-      my $lon_r = $lon<0? 'W':'E'; $lon=abs($lon);
-      my $lat_d = int($lat); $lat-=$lat_d;
-      my $lon_d = int($lon); $lon-=$lon_d;
-      my $lat_m = int($lat*60);
-      my $lon_m = int($lon*60);
-      my $lat_s = int(($lat*60-$lat_m)*60*100);
-      my $lon_s = int(($lon*60-$lon_m)*60*100);
-
-      $alt=int($alt*100);
-
-      $args=
-        "-M 'set Exif.GPSInfo.GPSLatitudeRef  Ascii $lat_r' " .
-        "-M 'set Exif.GPSInfo.GPSLongitudeRef Ascii $lon_r' " .
-        "-M 'set Exif.GPSInfo.GPSLatitude  $lat_d/1 $lat_m/1 $lat_s/100' " .
-        "-M 'set Exif.GPSInfo.GPSLongitude $lon_d/1 $lon_m/1 $lon_s/100' " .
-        "-M 'set Exif.GPSInfo.GPSAltitudeRef Byte 0' " .
-        "-M 'set Exif.GPSInfo.GPSAltitude    $alt/100' ";
-      $i=$#data;
+      print " [plt]" if $verbose;
+      $txt_data{$name} = {lat=>$lat, lon=>$lon, alt=>$alt};
+      last;
     }
   }
-  `exiv2 $args $_`;
+
+  if ($txt_data{$name}){
+    my $lat=$txt_data{$name}->{lat};
+    my $lon=$txt_data{$name}->{lon};
+    my $alt=$txt_data{$name}->{alt};
+    printf " %12.8f %13.8f %6.1f", $lat, $lon, $alt if $verbose;
+
+    my $lat_r = $lat<0? 'S':'N'; $lat=abs($lat);
+    my $lon_r = $lon<0? 'W':'E'; $lon=abs($lon);
+    my $lat_d = int($lat); $lat-=$lat_d;
+    my $lon_d = int($lon); $lon-=$lon_d;
+    my $lat_m = int($lat*60);
+    my $lon_m = int($lon*60);
+    my $lat_s = int(($lat*60-$lat_m)*60*100);
+    my $lon_s = int(($lon*60-$lon_m)*60*100);
+
+    $alt=int($alt*100);
+
+    $args=
+      "-M 'set Exif.GPSInfo.GPSLatitudeRef  Ascii $lat_r' " .
+      "-M 'set Exif.GPSInfo.GPSLongitudeRef Ascii $lon_r' " .
+      "-M 'set Exif.GPSInfo.GPSLatitude  $lat_d/1 $lat_m/1 $lat_s/100' " .
+      "-M 'set Exif.GPSInfo.GPSLongitude $lon_d/1 $lon_m/1 $lon_s/100' " .
+      "-M 'set Exif.GPSInfo.GPSAltitudeRef Byte 0' " .
+      "-M 'set Exif.GPSInfo.GPSAltitude    $alt/100' ";
+    $n++;
+  }
+  else {
+    $txt_data{$name} = 0;
+  }
+  `exiv2 $args $name`;
+  print "\n" if $verbose;
 }
-print "\n";
+printf STDERR "Done, set geo-reference for $n/%i files.\n",
+  scalar(keys %file_data) if $verbose;
+
+
+if ($plt_file){
+  print STDERR "Saving datafile...\n" if $verbose;
+  open OUT, ">$txt_file" or die "Can't open $txt_file\n";
+  foreach (sort keys %txt_data){
+    if ($txt_data{$_}){
+      printf OUT "%-20s %12.8f %13.8f %6.1f\n",
+         $_, $txt_data{$_}->{lat}, $txt_data{$_}->{lon}, $txt_data{$_}->{alt};
+    }
+    else{
+      print OUT "$_\n";
+    }
+  }
+  close OUT;
+  print STDERR "Done...\n" if $verbose;
+}
+
