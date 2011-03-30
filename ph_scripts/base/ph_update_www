@@ -366,8 +366,7 @@ cat > $base.htm << EOF
           charset=$charset"/>$scr$sty
   </head>
   <body bgcolor="#FFFFFF">$top
-    <div style="overflow:auto; margin: 5px">$image
-    </div>$btm
+    $image$btm
   </body>
 </html>
 EOF
