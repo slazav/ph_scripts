@@ -5,6 +5,7 @@ use Getopt::Long qw(GetOptions);
 
 my $tshift=0;
 my $txt_file='.geodata.txt';
+my $wpt_file='.geodata.wpt';
 my $plt_file;
 my $verbose=0;
 my $maxdist=200;
@@ -196,3 +197,20 @@ if ($plt_file){
   print STDERR "Done...\n" if $verbose;
 }
 
+print STDERR "Saving WPT-file...\n" if $verbose;
+open OUT, ">$wpt_file" or die "Can't open $wpt_file\n";
+print OUT qq*OziExplorer Waypoint File Version 1.1\r
+WGS 84\r
+Reserved 2\r
+garmin\r
+*;
+my $i=0;
+foreach (sort keys %txt_data){
+  next unless $txt_data{$_};
+  $i++;
+  printf OUT "$i,$_,%12.8f,%13.8f,%13.7f,8284,1,4,31,16777215,%17s,1,0,0.0,%5.1f\n",
+     $txt_data{$_}->{lat}, $txt_data{$_}->{lon},
+     ($file_data{$_}->{ts}+2209161600.0)/3600.0/24.0,
+     $file_data{$_}->{th}, $txt_data{$_}->{alt}/0.3048;
+}
+print STDERR "Done...\n" if $verbose;
