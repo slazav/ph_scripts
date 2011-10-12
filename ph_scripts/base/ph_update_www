@@ -175,8 +175,6 @@ make_mark(){
         \) \
         \( "$gif_file" -resize 50% \)\
         -compose over -composite\
-        +dither -colors 255 -channel A -contrast-stretch 0\
-        -quantize transparent \
         "$mfile"
     ;;
     aa_gif_halo)
@@ -195,8 +193,6 @@ make_mark(){
           -resize 50%\
         \) \
         -compose over -composite\
-        +dither -colors 255 -channel A -contrast-stretch 0\
-        -quantize transparent \
         "$mfile"
     ;;
     aa_gif_dark_halo)
@@ -215,8 +211,6 @@ make_mark(){
           -resize 50%\
         \) \
         -compose over -composite\
-        +dither -colors 255 -channel A -contrast-stretch 0\
-        -quantize transparent \
         "$mfile"
     ;;
   esac
