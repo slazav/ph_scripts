@@ -1,0 +1,182 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use Getopt::Long qw(GetOptions);
+
+##################################################
+sub usage(){
+print qq*
+$0 -- update photoalbum
+
+Usage:
+  $0 <options> <infile> > <outfile>
+
+Options:
+    -h,--help    -- display help screen
+    -q,--quiet   -- be quiet
+    -v,--verbose -- be more verbose
+    -m,--mstyle  -- mark style (see ph_update_www)
+    -g,--gmap    -- add google maps ref (see ph_update_www)
+
+Input file syntax:
+
+\\photo  <file> <title>
+\\photo[r|l] <file> <title>
+\\h(1|2|3|4)[r] <title>
+\\toc
+\\end
+
+Report bugs to <slazav\@altlinux.org>
+*;
+exit(1);
+}
+
+##################################################
+
+sub rem_ext($){
+  my $f=shift;
+  $f=~s/\..*//;
+  return $f;
+}
+sub rem_dir($){
+  my $f=shift;
+  $f=~s/.*\///;
+  return $f;
+}
+sub get_base($){
+  return rem_ext(rem_dir($_[0]));
+}
+sub rem_htm($){ # for <img alt="...">
+  my $t=shift;
+  $t=~s/<[^>]*>//g;
+  $t=~s/[<>\"\']//g;
+  return $t;
+}
+
+### creting TOC
+sub mk_toc($){
+  my $hh = shift;
+  my $dp=0; # prev depth
+  my $d0=0; # initial depth
+  for (my $i=0; $i<@{$hh}; $i++){
+    my $d=$hh->[$i]->{depth};
+    my $t=$hh->[$i]->{title};
+    if ($dp==$d0){
+      $dp=$d0=$d-1;
+    }
+    if ($dp < $d) {
+      print "<ul>\n"x($d-$dp);
+      $dp=$d;
+    }
+    if ($dp > $d) {
+      print "</ul>\n"x($dp-$d);
+      $dp=$d;
+    }
+    print "  <li><a href=\"#h". ($i+1). "\">$t</a>\n";
+  }
+  print "</ul>\n"x($dp-$d0);
+}
+
+##################################################
+
+### get options 
+my %opts;
+GetOptions(
+  "h|help"     => \$opts{help},
+  "q|quiet"    => \$opts{quiet},
+  "v|verbose"  => \$opts{verb},
+  "m|mstyle=s" => \$opts{mstyle},
+  "g|gmap"     => \$opts{gmap},
+) or usage();
+
+usage() if $opts{help};
+
+die "error: one filename expected\n" if @ARGV!=1;
+$opts{infile} = shift;
+die "error: can't find file: $opts{infile}\n" unless -f $opts{infile};
+
+my $ph_re='^\\\photo([lr]?)\s+(\S+)\s*(.*)';
+my $hh_re='^\\\h([1-4])(r?)\s+(.*)';
+
+my $alb_dir = rem_ext($opts{infile});
+my $alb_dir_base = rem_dir($alb_dir);
+die "error: can't find directory: $alb_dir\n" unless -d $alb_dir;
+my $html_url = "$alb_dir_base.htm";
+
+print STDERR "[Album: $opts{infile}",
+  "; dir: $alb_dir_base",
+  "; html: $html_url",
+  ($opts{mstyle}? "; mstyle: $opts{mstyle}":''),
+  ($opts{gmap}? '; google map refs':''),
+  "]\n" unless $opts{quiet};
+
+open IN, $opts{infile} or die "error: can't open file $opts{infile}: $!\n";
+
+### read photo and header lists
+my @ph;
+my @hh;
+foreach(<IN>){
+  next unless /^\\/; # skip non-commad lines
+  last if /^\\end/;  # stop at \end command
+  if (/$ph_re/){     # images
+    push @ph, {file=>$2, title=>$3};
+  }
+  elsif (/$hh_re/){  # headers
+    push @hh, {depth=>$1, title=>$3};
+  }
+}
+
+print STDERR "[Updating files...]\n" unless $opts{quiet};
+### update files
+for (my $i=0; $i<@ph; $i++){
+  my $f = $ph[$i]->{file};
+  my $t = $ph[$i]->{title};
+  die "error: can't find file: $alb_dir/$f\n" unless -f "$alb_dir/$f";
+  my $prev = get_base( $ph[$i==0? $#ph : $i-1]->{file} ). ".htm";
+  my $next = get_base( $ph[$i==$#ph? 0 : $i+1]->{file} ). ".htm";
+  my $up = '../' . $html_url . '#ph' . ($i+1);
+  my $o =
+    ($opts{gmap}  ? ' -g':'') .
+    ($opts{verb}  ? ' -v':'') .
+    ($opts{style} ? " -m \"$opts{style}\"":'') .
+    ($t ? " -t \"$t\"":'') .
+    " -p \"$prev\" -n \"$next\" -u \"$up\"";
+  print STDERR "$f $t\n" if $opts{verb};
+  `ph_update_www $o "$alb_dir/$f"`;
+}
+print STDERR "[Creating HTML index...]\n" unless $opts{quiet};
+
+### create html
+seek IN, 0, 0;
+my $op_tab=0;
+my $np=0;
+my $nh=0;
+foreach(<IN>){
+  if    (/$ph_re/){
+    $np++;
+    my $al = ($1 eq 'r'?'right':($1 eq 'l'? 'left':'center'));
+    my $title = $3;
+    my $atitle = rem_htm($3);
+    my $hfile = $alb_dir_base . '/' . rem_ext($2) . ".htm";
+    my $tfile = $alb_dir_base . '/_' . $2;
+    print "<p><table border=0 align=$al cellpadding=10><tr>\n"
+      if !$op_tab; $op_tab=1;
+
+    `identify $1` =~/(\d+)x(\d+)/;
+    my ($w, $h) = ($1, $2);
+
+    print "<td width=$w valign=top><a name=\"ph$np\"></a>\n";
+    print "<a href=\"$hfile\">\n";
+    print "<img src=\"$tfile\" alt=\"$atitle\"\n";
+    print "  width=$w height=$h></a><br>\n";
+    print "<font size=\"-1\"><i>$title</i></font></td>\n";
+  }
+  elsif (/$hh_re/){
+    print( ($2 eq 'r'?'<hr>':'') . "<a name=\"h" . ++$nh . "\"></a><h$1>$3</h$1>"); }
+  elsif (/^\\toc/){ mk_toc(\@hh); }
+  elsif (/^\\end/){ last; }
+  elsif (/^\\\\/){ s/^\\//; print; }
+  elsif (/^\\/){ warn "warning: skipping unknown command: $_\n"; }
+  else{ print "</tr></table></p>\n" if $op_tab; $op_tab=0; print; }
+}
+print STDERR "[Done: $np photos, $nh headers]\n" unless $opts{quiet};

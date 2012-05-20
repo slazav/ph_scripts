@@ -1,0 +1,83 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use Getopt::Long qw(GetOptions);
+
+##################################################
+sub usage(){
+print qq*
+$0 -- create photoalbum
+
+Usage:
+  $0 <options> <dir>
+
+Options:
+    -h,--help    -- display help screen
+    -q,--quiet   -- be quiet
+    -v,--verbose -- be more verbose
+
+Report bugs to <slazav\@altlinux.org>
+*;
+exit(1);
+}
+
+##################################################
+
+my %opts;
+GetOptions(
+  "h|help"     => \$opts{help},
+  "v|verbose"  => \$opts{verb},
+  "q|quiet"    => \$opts{quiet},
+) or usage();
+
+usage() if $opts{help};
+
+die "error: single directory name expected in init mode\n" if @ARGV!=1;
+my $dir = shift;
+die "error: can't find directory: $opts{indir}\n" unless -d $opts{indir};
+my $txt = "$dir.txt";
+my $htm = "$dir.htm";
+
+if ( -f $txt){
+  print STDERR "[Saving old $txt to $txt.bak]" unless $opts{quiet};
+  rename $txt, $txt."bak" or die "error: can't save $txt to $txt.bak: $!\n";
+}
+
+open OUT, "> $txt" or die "error: can't open file $txt: $!\n";
+print OUT "<html>\n<body>\n";
+
+my $ww=0;
+my $odate='';
+
+opendir DIR, "$dir" or die "error: can't open directory $dir: $!\n";
+
+while (readdir DIR){
+  next unless /\.(jpg|jpeg|png|tif|tiff)$/i;
+  my $f = $_;
+  my $t = '_' . $_;
+
+  `ph_resize "$f" "$t" 200 100 600` if "$dir/$f" -nt "$dir/$t";
+
+
+  `identify $dir/$f` =~/(\d+)x(\d+)/;
+  my $w = $1;
+
+  `exiv2 -Pkv $dir/$f 2>/dev/null` =~ /Exif.Photo.DateTimeOriginal\s+([0-9:]+)/;
+  my $date=$1;
+
+  if ( $odate ne $date){
+    print OUT "\n<hr><h4>$date</h4>\n";
+    $ww=0; $odate=$date;
+  }
+
+  $ww+=$w;
+  if ( $ww > 600){
+    print OUT "\n"; $ww=$w;
+  }
+  print OUT "\\photo $f";
+}
+print OUT "</body>\n</html>\n";
+closedir DIR;
+close OUT;
+
+`./addph "$txt" > "$dir.htm"`;
