@@ -271,6 +271,7 @@ fi
 ######################################################################
 # make key
 key="$(echo "$title$purl$uurl$nurl$mfile$ifile$width$height" | md5sum | head -c32)"
+oldkey=
 if [ -f "$base.htm" ]; then
   oldkey="$(sed -n 's/.*<!--KEY:\(.*\)-->.*/\1/p' "$base.htm")"
 fi
@@ -326,7 +327,6 @@ if [ "$key" != "$oldkey" ]; then
     function sw_marks(){
       document.forms[0].elements[0].checked=
         !document.forms[0].elements[0].checked}"
-
     sty="$sty
       #image { position: absolute; left: 0px; top: 0px; width: ${width}px; height: ${height}px; }
       #marks { position: absolute; left: 0px; top: 0px; width: ${width}px; visibility: visible; }
@@ -335,10 +335,10 @@ if [ "$key" != "$oldkey" ]; then
     <table align=right class=mrk><tr><td><form>для переключения подписей щелкните мышью по картинке
       <input type=\"checkbox\" checked onclick=\"update_vis()\"></form></td></tr></table>"
     image="
-      <div style=\"position: relative; height: ${height}px;\" onclick=\"sw_marks(); update_vis()\">
-        <img id=\"image\" src=\"${ifile##*/}\" alt=\"$alttitle\">
-        <img id=\"marks\" src=\"${mfile##*/}\">
-      </div>"
+    <div style=\"position: relative; height: ${height}px;\" onclick=\"sw_marks(); update_vis()\">
+      <img id=\"image\" src=\"${ifile##*/}\" alt=\"$alttitle\">
+      <img id=\"marks\" src=\"${mfile##*/}\">
+    </div>"
   fi
 
   # make exif info
@@ -368,8 +368,7 @@ if [ "$key" != "$oldkey" ]; then
     <meta http-equiv="Content-Type" content="text/html;
           charset=$charset"/>$scr$sty
   </head>
-  <body bgcolor="#FFFFFF">$top
-    $image$btm
+  <body bgcolor="#FFFFFF">$top$image$btm
   </body>
 </html>
 EOF
