@@ -4,20 +4,12 @@ base="bat"
 
 n=1
 
-t(){
-  local n="$1"
-  shift
-  cp -f -- "$base.fig" "$base$n.fig"
-  cp -f -- "$base.jpg" "$base$n.jpg"
-  sed -i -e "s|$base.jpg|$base$n.jpg|" "$base$n.fig"
-  rm -f -- "$base${n}_m.gif" "$base${n}_m.png"
-  echo ">>> ph_update_www $* $base$n.jpg"
-  time ../ph_update_www "$@" "$base$n.jpg"
-}
-
-t 1 -m simple_gif
-t 2 -m aa_gif
-t 3 -m aa_gif_halo
-t 4 -m aa_gif_dark_halo
-
-
+for st in simple_gif aa_gif aa_gif_halo aa_gif_dark_halo; do
+  ../ph_update_www -t "style: $st" -m "$st" $base.jpg
+  for ext in _m.gif _m.png .htm; do
+    [ -f ${base}$ext ] &&
+      mv -f -- ${base}$ext ${base}_${st}$ext ||:
+  done
+  sed -i "s|src=\"${base}_m|src=\"${base}_${st}_m|" ${base}_${st}.htm
+  rm -f -- _$base.jpg
+done
