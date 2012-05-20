@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+
 use strict;
 use warnings;
 use Getopt::Long qw(GetOptions);
@@ -19,12 +20,14 @@ Options:
     -g,--gmap    -- add google maps ref (see ph_update_www)
 
 Input file syntax:
-
-\\photo  <file> <title>
-\\photo[r|l] <file> <title>
-\\h(1|2|3|4)[r] <title>
-\\toc
-\\end
+Commands are started at the beginning of lines with '\\' symbol.
+Other lines copied without changes. Commands:
+\\photo  <file> <title>     -- photo
+\\photo[r|l] <file> <title> -- left/right aligned photo
+\\h(1|2|3|4)[r] <title>     -- header, "r" for ruler above it
+\\toc                       -- table of contents
+\\end                       -- stop processing file
+\\\\                        -- put \\ at the beginning of the line.
 
 Report bugs to <slazav\@altlinux.org>
 *;
@@ -64,17 +67,11 @@ sub mk_toc($){
     if ($dp==$d0){
       $dp=$d0=$d-1;
     }
-    if ($dp < $d) {
-      print "<ul>\n"x($d-$dp);
-      $dp=$d;
-    }
-    if ($dp > $d) {
-      print "</ul>\n"x($dp-$d);
-      $dp=$d;
-    }
-    print "  <li><a href=\"#h". ($i+1). "\">$t</a>\n";
+    for (;$dp<$d;$dp++) {print '  'x($dp-1) . "<ul>\n";}
+    for (;$dp>$d;$dp--) {print '  'x($dp-2) . "</ul>\n";}
+    print '  'x($d-1) . "<li><a href=\"#h". ($i+1). "\">$t</a>\n";
   }
-  print "</ul>\n"x($dp-$d0);
+  for (;$dp>$d0;$dp--) {print '  'x($dp-2) . "</ul>\n";}
 }
 
 ##################################################
@@ -100,7 +97,7 @@ my $hh_re='^\\\h([1-4])(r?)\s+(.*)';
 
 my $alb_dir = rem_ext($opts{infile});
 my $alb_dir_base = rem_dir($alb_dir);
-die "error: can't find directory: $alb_dir\n" unless -d $alb_dir;
+#die "error: can't find directory: $alb_dir\n" unless -d $alb_dir;
 my $html_url = "$alb_dir_base.htm";
 
 print STDERR "[Album: $opts{infile}",
@@ -146,7 +143,7 @@ for (my $i=0; $i<@ph; $i++){
 }
 print STDERR "[Creating HTML index...]\n" unless $opts{quiet};
 
-### create html
+### create index html
 seek IN, 0, 0;
 my $op_tab=0;
 my $np=0;
@@ -172,7 +169,8 @@ foreach(<IN>){
     print "<font size=\"-1\"><i>$title</i></font></td>\n";
   }
   elsif (/$hh_re/){
-    print( ($2 eq 'r'?'<hr>':'') . "<a name=\"h" . ++$nh . "\"></a><h$1>$3</h$1>"); }
+    print( ($2 eq 'r'?'<hr>':'') .
+      "<a name=\"h" . ++$nh . "\"></a><h$1>$3</h$1>\n"); }
   elsif (/^\\toc/){ mk_toc(\@hh); }
   elsif (/^\\end/){ last; }
   elsif (/^\\\\/){ s/^\\//; print; }
