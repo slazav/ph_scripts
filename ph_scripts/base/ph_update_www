@@ -153,7 +153,7 @@ make_mark(){
   local ifile="$1"; shift
   local mfile="$1"; shift
 
-  verbose "  creating marks";
+  verbose " create marks: $mfile";
   gif_file="$(mktemp).gif"
 
   local sc="$(fig_scale)"
@@ -228,8 +228,6 @@ make_mark(){
   rm -f -- "$gif_file"
 }
 
-verbose "$ifile";
-
 ## updating  marks
 mfile=""
 [ ! -r "$base.fig" ] || mfile="${base}_m.gif"
@@ -253,65 +251,75 @@ fi
 
 # create thumbnail if image have change
 if [ "$tfile" -ot "$ifile" ]; then
-  verbose " creating thumbnail"
+  verbose " create thumbnail: $tfile"
   ph_resize $ifile $tfile 200 100 600 1>&2
 fi
 
 if th_marked "$tfile"; then
   # remove marked thumbnail if we have no marks
   if [ -z "$mfile" ]; then
-    verbose " removing marked thumbnail"
+    verbose " remove mark on thumbnail: $tfile"
     ph_resize $ifile $tfile 200 100 600 1>&2
   fi
 else
   if [ -n "$mfile" ]; then
-    verbose "  updating mark on thumbnail"
+    verbose " add mark on thumbnail: $tfile"
     th_mark "$tfile"
   fi
 fi
 
 ######################################################################
+# make key
+key="$(echo "$title$purl$uurl$nurl$mfile$ifile$width$height" | md5sum | head -c32)"
+if [ -f "$base.htm" ]; then
+  oldkey="$(sed -n 's/.*<!--KEY:\(.*\)-->.*/\1/p' "$base.htm")"
+fi
+
+######################################################################
 ## creating html
-verbose "  creating html";
-alttitle="$(filter_text "$title")"
+
+if [ "$key" != "$oldkey" ]; then
+  verbose " create html: $base.htm";
+  alttitle="$(filter_text "$title")"
 
 
-sty="a {text-decoration: none;}"
-top=""
-btm=""
-scr=""
+  sty="a {text-decoration: none;}"
+  top=""
+  btm=""
+  scr=""
 
-# make navigation panel
-if [ -n "$purl" -o -n "$uurl" -o -n "$nurl" ]; then
-  [ -z "$purl" ] || purl="<a href=\"$purl\">&lt;&lt; предыдущая</a>"
-  [ -z "$uurl" ] || uurl="<a href=\"$uurl\">к оглавлению</a>"
-  [ -z "$nurl" ] || nurl="<a href=\"$nurl\">следующая &gt;&gt;</a>"
-  top="$top
+
+  # make navigation panel
+  if [ -n "$purl" -o -n "$uurl" -o -n "$nurl" ]; then
+    [ -z "$purl" ] || purl="<a href=\"$purl\">&lt;&lt; предыдущая</a>"
+    [ -z "$uurl" ] || uurl="<a href=\"$uurl\">к оглавлению</a>"
+    [ -z "$nurl" ] || nurl="<a href=\"$nurl\">следующая &gt;&gt;</a>"
+    top="$top
     <table class=nav><tr>
       <td align=left>$purl</td>
       <td align=center>$uurl</td>
       <td align=right>$nurl</td>
     </tr></table>"
-  sty="$sty
+    sty="$sty
       .nav { font: bold 10pt sans-serif; width: 100%}"
-fi
+  fi
 
-# make title
-if [ -n "$title" ]; then
-  btm="$btm
+  # make title
+  if [ -n "$title" ]; then
+    btm="$btm
     <div class=title>$title</div>"
-  sty="$sty
+    sty="$sty
       .title { font: 16pt sans-serif;
                margin: 0px; padding-bottom: 20px;
                border-bottom: 1px solid #E0E0E0; width: 100%}"
-fi
+  fi
 
-# make javascript for switching marks
-image="
+  # make javascript for switching marks
+  image="
     <img src=\"${ifile##*/}\" width=\"$width\" height=\"$height\" alt=\"$alttitle\">"
 
-if [ -n "$mfile" ]; then
-  scr="$scr
+  if [ -n "$mfile" ]; then
+    scr="$scr
     function update_vis(){
       document.getElementById(\"marks\").style.visibility=
         document.forms[0].elements[0].checked?'visible':'hidden'}
@@ -319,42 +327,43 @@ if [ -n "$mfile" ]; then
       document.forms[0].elements[0].checked=
         !document.forms[0].elements[0].checked}"
 
-  sty="$sty
+    sty="$sty
       #image { position: absolute; left: 0px; top: 0px; width: ${width}px; height: ${height}px; }
       #marks { position: absolute; left: 0px; top: 0px; width: ${width}px; visibility: visible; }
       .mrk { font: 8pt sans-serif; text-align: right; }"
-  btm="$btm
+    btm="$btm
     <table align=right class=mrk><tr><td><form>для переключения подписей щелкните мышью по картинке
       <input type=\"checkbox\" checked onclick=\"update_vis()\"></form></td></tr></table>"
-  image="
+    image="
       <div style=\"position: relative; height: ${height}px;\" onclick=\"sw_marks(); update_vis()\">
         <img id=\"image\" src=\"${ifile##*/}\" alt=\"$alttitle\">
         <img id=\"marks\" src=\"${mfile##*/}\">
       </div>"
-fi
+  fi
 
-# make exif info
-btm="$btm
+  # make exif info
+  btm="$btm
     <div class=exif>$(print_exif2html "$ifile")
     </div>"
-sty="$sty
+  sty="$sty
       .exif { font: bold 8pt sans-serif;}"
 
 
-if [ -n "$sty" ]; then
-  sty="
+  if [ -n "$sty" ]; then
+    sty="
     <style type=\"TEXT/CSS\">$sty
     </style>"
-fi
+  fi
 
-if [ -n "$scr" ]; then
-  scr="
+  if [ -n "$scr" ]; then
+    scr="
     <script language=\"JavaScript\">$scr
     </script>"
-fi
+  fi
 
-cat > $base.htm << EOF
+  cat > $base.htm << EOF
 <html>
+  <!--KEY:$key-->
   <head><title>$alttitle</title>
     <meta http-equiv="Content-Type" content="text/html;
           charset=$charset"/>$scr$sty
@@ -364,3 +373,4 @@ cat > $base.htm << EOF
   </body>
 </html>
 EOF
+fi

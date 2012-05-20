@@ -117,6 +117,7 @@ if [ -z "$skip_files" ]; then
 
     if [ ! -f "$base/$file" ] ;then [ ! -f "$base/$file.jpg" ] || file="$file.jpg"; fi
 
+    printf "%3d  %-15s %s\n" "$num" "$file" "$title" > /dev/stderr
     ph_update_www ${verbose:+-v} ${google:+-g} ${mstyle:+-m $mstyle} -t "$title" -p "$purl" -u "$uurl" -n "$nurl" "$base/$file"
 #    echo "$file $title"
   done <<EOF
@@ -145,7 +146,6 @@ EOF
       *) align=center
     esac
 
-    printf "%3d  %-15s %s\n" "$num" "$file" "$title" > /dev/stderr
 
     [ -f "$base/$file" ] || file="$file.jpg"
 
