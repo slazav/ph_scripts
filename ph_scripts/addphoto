@@ -86,9 +86,7 @@ GetOptions(
   "g|gmap"     => \$opts{gmap},
 ) or usage();
 
-usage() if $opts{help};
-
-die "error: one filename expected\n" if @ARGV!=1;
+usage() if $opts{help} || @ARGV!=1;
 $opts{infile} = shift;
 die "error: can't find file: $opts{infile}\n" unless -f $opts{infile};
 
