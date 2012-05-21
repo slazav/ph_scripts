@@ -157,7 +157,7 @@ foreach(<IN>){
     print "<p><table border=0 align=$al cellpadding=10><tr>\n"
       if !$op_tab; $op_tab=1;
 
-    `identify $1` =~/(\d+)x(\d+)/;
+    `identify $tfile` =~/(\d+)x(\d+)/;
     my ($w, $h) = ($1, $2);
 
     print "<td width=$w valign=top><a name=\"ph$np\"></a>\n";
