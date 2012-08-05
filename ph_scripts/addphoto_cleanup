@@ -1,91 +1,118 @@
-#!/bin/sh -eu
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Getopt::Long qw(GetOptions);
 
 ##################################################
+sub usage(){
+print qq*
+$0 -- cleanup photoalbum
 
-PROG="${0##*/}"
-
-show_help()
-{
-  cat <<EOF
-
-$PROG - remove unused images in album
-
-Usage: $PROG indexfile
+Usage:
+  $0 <options> <infile>
 
 Options:
-    -h         display help screen
-    -v         be more verbose
-    -f         don't ask before removing files
-    -d         dry run: only list files to be removed
+    -h,--help    -- display help screen
+    -q,--quiet   -- be quiet, do not list files
+    -f,--force   -- remove without asking
+    -d --dryrun  -- list files but remove nothing
 
-Report bugs to <slazav@altlinux.org>
-EOF
-exit
+Report bugs to <slazav\@altlinux.org>
+*;
+exit(1);
 }
 
 ##################################################
 
-opts="hvdf"
+## split path into full directory name + basename + last extension
+## './some/path/file.e1.e2.ext' -> './some/path/' + 'file.e1.e2' + '.ext'
+sub path_split($){
+  $_[0]=~m&(.*\/)?((.*)(\..*)|(.*)())&;
+  return (($1 or ''), ($3 or $5 or ''), ($4 or $6 or ''));
+}
 
-TEMP=`getopt -n "$PROG" -o $opts -- "$@"` || show_help
-eval set -- "$TEMP"
+## list all files in the directory
+sub read_dir{
+  my @ret;
+  my $dir   = shift;
+  unless(opendir D, $dir){
+    warn "Skipping unreadable directory $dir: $!\n";
+    return;
+  }
+  my @list = readdir D;
+  closedir D;
 
-dr=
-fr=
-while :; do
-  case "$1" in
-    -v) verbose=1 ;;
-    -h) show_help ;;
-    -d) dr=1 ;;
-    -f) fr=1 ;;
-    --) shift; break ;;
-  esac
-  shift
-done
-
-[ "$#" = 1 ] || show_help
-
-ifile="$1"
-[ -r "$ifile" ] || fatal "$ifile: can't find file"
-
-base="${1%%.*}"
+  foreach (@list){
+    next if /^\.{1,2}$/;
+    my $f = "$dir/$_";
+    push(@ret, (-d $f)? read_dir($f) : $f);
+  }
+  return @ret;
+}
 
 ##################################################
 
-files="$(LC_ALL=C sed -n -e '
-   s/^\\photo[rl]\?[[:space:]]\+\([^[:space:]]\+\).*/\1/p' "$ifile")"
-files="$(printf " %s " "$files" | tr '\n' ' ')"
+### get options 
+my %opts;
+GetOptions(
+  "h|help"     => \$opts{help},
+  "q|quiet"    => \$opts{quiet},
+  "f|force"    => \$opts{force},
+  "d|dryrun"   => \$opts{dryrun},
+) or usage();
 
-toremove=''
-n=0
+usage() if $opts{help} || @ARGV!=1;
+$opts{infile} = shift;
+die "error: can't find file: $opts{infile}\n" unless -f $opts{infile};
 
-for i in $(find "$base/" -maxdepth 1 -name '*.jpg' -not -name '_*'); do
-  f="${i#$base/}"
-  [ -n "${files##* $f *}" ] || continue
-  [ -n "${files##* ${f%.jpg} *}" ] || continue
+# regular expressions for addphoto commands
+my $ph_re='^\\\photo([lr]?)\s+(\S+)\s*(.*)';
 
-  b="${i%.jpg}"
-  for oth in $b.jpg $b.fig $b.htm $b.gif ${b}_m.gif ${b%/*}/_${b##*/}.jpg; do
-    [ -f "$oth" ] || continue
-    toremove="$toremove  $oth
-"
-    n="$(($n+1))"
-  done
-done
+my ($dir, $base, $ext) = path_split($opts{infile});
 
-[ "$n" != 0 ] || exit 0
+### collect files to keep from album index
+my %keep;
+open IN, $opts{infile} or die "error: can't open file $opts{infile}: $!\n";
+foreach(<IN>){
+  if (/$ph_re/){     # images
+    $keep{"$dir$base/$2"} = 1;
 
-if [ -z "$fr" ]; then
-  echo "$toremove"
-  if [ -z "$dr" ]; then
-    echo -n "Remove these files (y|N)? "
-    read ans
-    [ "$ans" = "y" -o "$ans" = "Y" ] || dr=1
-  fi
-fi
+    ## TODO: ask addphoto_www for files related to the image
+    my ($d, $b, $e) = path_split($2);
+    # add html and thumbnail for this image
+    $keep{"$dir$base/$d$b.htm"} = 1;
+    $keep{"$dir$base/${d}_$b$e"} = 1;
+    # add mark files
+    $keep{"$dir$base/$d${b}_m$e"} = 1 if -f "$dir$base/$d$b.fig";
+  }
+  elsif (/^\\keep\s+(.*)/){  # keep command
+    $keep{$_} = 1 foreach (glob "$dir$base/$1");
+  }
+}
 
-if [ -z "$dr" ]; then
-  for i in $toremove; do
-    rm -f "$i"
-  done
-fi
+### get files to delete
+my @del;
+foreach(read_dir "$dir$base"){
+  push(@del, $_) unless exists($keep{$_});
+}
+
+exit 0 if $#del<0;
+
+### print file list
+if (!$opts{quiet}){
+  printf STDERR "Files to remove (%d):\n", $#del+1;
+  print STDERR join("\n", sort @del), "\n";
+}
+
+### ask question
+if (!$opts{force} && !$opts{dryrun}){
+  print STDERR "Remove these files (y|N)? ";
+  $opts{dryrun} = 1 unless getc =~ /y/i;
+}
+
+### remove files
+if (!$opts{dryrun}){
+  printf STDERR "Files have been removed.\n", $#del+1;
+  unlink foreach @del;
+}
