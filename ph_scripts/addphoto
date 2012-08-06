@@ -2,9 +2,10 @@
 
 use strict;
 use warnings;
+use addphoto;
 use Getopt::Long qw(GetOptions);
 
-##################################################
+#################################################################
 sub usage(){
 print qq*
 $0 -- update photoalbum
@@ -35,58 +36,7 @@ Report bugs to <slazav\@altlinux.org>
 exit(1);
 }
 
-##################################################
-
-## split path into full directory name + basename + last extension
-## './some/path/file.e1.e2.ext' -> './some/path/' + 'file.e1.e2' + '.ext'
-sub path_split($){
-  $_[0]=~m&(.*\/)?((.*)(\..*)|(.*)())&;
-  return (($1 or ''), ($3 or $5 or ''), ($4 or $6 or ''));
-}
-
-## Get relative path from dir1 to dir2.
-## Absolute paths, . and .. are ignored!
-sub rel_dir($$){
-  my @d1 = grep {/.+/ && !/^\.{1,2}$/} split '/', shift;
-  my @d2 = grep {/.+/ && !/^\.{1,2}$/} split '/', shift;
-  my $n;
-  for ($n = 0; $n <= $#d1 && $n <= $#d2; $n++){
-    last if ($d1[$n] ne $d2[$n])
-  }
-  my $ret='';
-  $ret .= "../" foreach @d1[$n..$#d1];
-  $ret .= "$_/" foreach @d2[$n..$#d2];
-  return $ret;
-}
-
-## remove html tags from text, for html alt atribute
-sub rem_htm($){
-  my $t=shift;
-  $t=~s/<[^>]*>//g;
-  $t=~s/[<>\"\']//g;
-  return $t;
-}
-
-### crete TOC
-sub mk_toc($){
-  my $hh = shift;
-  my $dp=0; # prev depth
-  my $d0=0; # initial depth
-  for (my $i=0; $i<@{$hh}; $i++){
-    my $d=$hh->[$i]->{depth};
-    my $t=$hh->[$i]->{title};
-    if ($dp==$d0){
-      $dp=$d0=$d-1;
-    }
-    for (;$dp<$d;$dp++) {print '  'x($dp-1) . "<ul>\n";}
-    for (;$dp>$d;$dp--) {print '  'x($dp-2) . "</ul>\n";}
-    print '  'x($d-1) . "<li><a href=\"#h". ($i+1). "\">$t</a>\n";
-  }
-  for (;$dp>$d0;$dp--) {print '  'x($dp-2) . "</ul>\n";}
-}
-
-##################################################
-
+#################################################################
 ### get options 
 my %opts;
 GetOptions(
@@ -99,13 +49,10 @@ GetOptions(
 
 usage() if $opts{help} || @ARGV!=1;
 $opts{infile} = shift;
-die "error: can't find file: $opts{infile}\n" unless -f $opts{infile};
+die "can't find file: $opts{infile}\n"
+  unless -f $opts{infile};
 
-# regular expressions for addphoto commands
-my $ph_re='^\\\photo([lr]?)\s+(\S+)\s*(.*)';
-my $hh_re='^\\\h([1-4])(r?)\s+(.*)';
-
-my ($dir, $base, $ext) = path_split($opts{infile});
+my ($dir, $base, $ext) = addphoto::path_split($opts{infile});
 
 print STDERR "[Album: $opts{infile}",
   "; photo dir: $base",
@@ -114,7 +61,8 @@ print STDERR "[Album: $opts{infile}",
   ($opts{gmap}? '; google map refs':''),
   "]\n" unless $opts{quiet};
 
-open IN, $opts{infile} or die "error: can't open file $opts{infile}: $!\n";
+open IN, $opts{infile} or
+  die "can't open $opts{infile}: $!\n";
 
 ### read photo and header lists
 my @ph;
@@ -122,14 +70,14 @@ my @hh;
 foreach(<IN>){
   next unless /^\\/; # skip non-command lines
   last if /^\\end/;  # stop at \end command
-  if (/$ph_re/){     # images
+  if (/$addphoto::ph_re/){     # images
     if ($2=~m|^/| || $2=~m|^\.\.//| || $2=~m|/\.\./|){
       warn "Skip image with non-relative path: %2\n";
       next;
     }
     push @ph, {file=>$2, title=>$3};
   }
-  elsif (/$hh_re/){  # headers
+  elsif (/$addphoto::head_re/){  # headers
     push @hh, {depth=>$1, title=>$3};
   }
 }
@@ -139,19 +87,20 @@ print STDERR "[Updating files...]\n" unless $opts{quiet};
 for (my $i=0; $i<@ph; $i++){
   my $f = $ph[$i]->{file};
   my $t = $ph[$i]->{title};
-  die "error: can't find file: $dir$base/$f\n" unless -f "$dir$base/$f";
+  die "can't find file: $dir$base/$f\n"
+    unless -f "$dir$base/$f";
 
   ## previous and next files:
   my $fp = $ph[$i==0? $#ph : $i-1]->{file};
   my $fn = $ph[$i==$#ph? 0 : $i+1]->{file};
 
   ## navigation links:
-  my ($d, $b, $e) = path_split($f);
-  my ($dp, $bp, $ep) = path_split($fp);
-  my ($dn, $bn, $en) = path_split($fn);
-  my $prev = rel_dir($d, $dp) . "$bp.htm";
-  my $next = rel_dir($d, $dn) . "$bn.htm";
-  my $up = '../' . rel_dir($d, '')  . "$base.htm#ph" . ($i+1);
+  my ($d, $b, $e) = addphoto::path_split($f);
+  my ($dp, $bp, $ep) = addphoto::path_split($fp);
+  my ($dn, $bn, $en) = addphoto::path_split($fn);
+  my $prev = addphoto::rel_dir($d, $dp) . "$bp.htm";
+  my $next = addphoto::rel_dir($d, $dn) . "$bn.htm";
+  my $up = '../' . addphoto::rel_dir($d, '')  . "$base.htm#ph" . ($i+1);
 
   ## collect options for ph_update_www:
   my $o =
@@ -173,22 +122,21 @@ my $np=0;
 my $nh=0;
 foreach(<IN>){
 
-  if (/$ph_re/){ # \photo commands
+  if (/$addphoto::ph_re/){ # \photo commands
     $np++;
     my $al = ($1 eq 'r'?'right':($1 eq 'l'? 'left':'center'));
     my ($img, $title) = ($2, $3);
 
     # paths of html page and thumbnail image from album index
-    my ($id, $ib, $ie) = path_split($img);
+    my ($id, $ib, $ie) = addphoto::path_split($img);
     my $hfile = "$base/$id$ib.htm";
     my $tfile = "$base/${id}_$ib$ie";
 
     # title without html for alt atribute
-    my $atitle = rem_htm($title); 
+    my $atitle = addphoto::rem_html($title);
 
     # size of the thumbnail image
-    `identify "$dir$tfile"` =~/(\d+)x(\d+)/;
-    my ($w, $h) = ($1, $2);
+    my ($w, $h) = addphoto::image_size("$dir$tfile");
 
     print "<p><table border=0 align=$al cellpadding=10><tr>\n"
       if !$op_tab; $op_tab=1;
@@ -199,11 +147,11 @@ foreach(<IN>){
     print "<font size=\"-1\"><i>$title</i></font></td>\n";
   }
 
-  elsif (/$hh_re/){ # \h commands
+  elsif (/$addphoto::head_re/){ # \h commands
     print( ($2 eq 'r'?'<hr>':'') .
       "<a name=\"h" . ++$nh . "\"></a><h$1>$3</h$1>\n"); }
 
-  elsif (/^\\toc/){ mk_toc(\@hh); }
+  elsif (/^\\toc/){ addphoto::mk_toc(\@hh); }
   elsif (/^\\end/){ last; }
   elsif (/^\\\\/){ s/^\\//; print; }
   elsif (/^\\#/){} # skip comments

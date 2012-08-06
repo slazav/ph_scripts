@@ -1,4 +1,5 @@
 bindir?=/usr/bin
+datadir?=/usr/share
 INSTALL?=/usr/bin/install
 
 SCRIPTS=\
@@ -19,6 +20,7 @@ all:
 install:
 	mkdir -p -- "$(bindir)"
 	$(INSTALL) -Dpm 755 $(SCRIPTS) "$(bindir)"
+	$(INSTALL) -Dpm 644 addphoto.pm "$(datadir)/perl5"
 
 install-extra:
 	make -C extra install
