@@ -11,11 +11,13 @@ EOF
 exit 1
 }
 
+#f='Exif.Canon.ImageNumber' # old
+f='Exif.Canon.FileNumber'
+
 for i in $@; do
   [ -s "$i" ] || continue
   exiv2 -Pkt $i | while read k v; do
-#    [ "$k" = Exif.Canon.ImageNumber ] || continue ## old
-    [ "$k" = Exif.Canon.FileNumber ] || continue
+    [ "$k" = "$f" ] || continue
     mv "$i" "${v#*-}.jpg"
   done
 done

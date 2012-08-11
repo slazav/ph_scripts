@@ -40,7 +40,7 @@ foreach (@files) {
   # create thumbnail image, get its width
   my $tfile="${d}_$b$e";
   `ph_resize "$file" "$tfile" 200 100 600`
-    if addphoto::older($tfile, $file);
+    if addphoto::isolder($tfile, $file);
   my ($w, $h) = addphoto::image_size($tfile);
 
   # date from exif

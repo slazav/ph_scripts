@@ -4,16 +4,13 @@ INSTALL?=/usr/bin/install
 
 SCRIPTS=\
   addphoto\
+  addphoto_img\
   addphoto_cleanup\
   addphoto_ini\
   addphoto_mkfig\
   ph_addgeo\
-  ph_canon_rename\
-  ph_exif\
   ph_resize\
-  ph_size\
-  ph_towww\
-  ph_update_www
+  ph_towww
 
 all:
 

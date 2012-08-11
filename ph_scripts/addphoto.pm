@@ -1,5 +1,30 @@
 package addphoto;
 
+#### MESSAGES
+
+our %msg = (
+  dat_fmt => 'Дата и время съемки: %s',
+  alt_fmt => 'Высота: %d м',
+  crd_fmt => 'Координаты: %s',
+  pref => '&lt;&lt; предыдущая',
+  uref => 'к оглавлению',
+  nref => 'следующая &gt;&gt;',
+  mark_sw => 'для отключения пометок щелкните мышью по картинке',
+);
+
+# some settings:
+our $fig_res = 14.2875; # convert pixel -> fig units
+our $html_charset = 'koi8-r';
+our $fig_lang = 'ru_RU.KOI8-R';
+our $def_mstyle = 'aa_gif';
+
+#### Regular expressions for addphoto commands
+our $ph_re='^\\\photo([lr]?)\s+(\S+)\s*(.*)';
+our $head_re='^\\\h([1-4])(r?)\s+(.*)';
+our $keep_re='^\\\keep\s+(.*)';
+
+#### FILE AND PATH FUNCTIONS
+
 ## split path into full directory name + basename + last extension
 ## './some/path/file.e1.e2.ext' -> './some/path/' + 'file.e1.e2' + '.ext'
 sub path_split($){
@@ -22,7 +47,7 @@ sub rel_dir($$){
   return $ret;
 }
 
-## list all files in the directory
+## Recursively list all files in the directory.
 sub read_dir{
   my @ret;
   my $dir   = shift;
@@ -41,15 +66,15 @@ sub read_dir{
   return @ret;
 }
 
-## Is first file older then second one or
-## first file does not exist.
-sub older($$){
-  return 0 if (!-f $_[1]);
-  return 1 if (!-f $_[0]);
+## Do we need to update file1 from file2
+## (is it older or does not exist)?
+sub isolder($$){
+  return 0 if (!-r $_[1]);
+  return 1 if (!-r $_[0]);
   return (stat $_[0])[9] < (stat $_[1])[9];
 }
 
-## get image size
+## get image size (identify from ImageMagick is needed).
 sub image_size($){
   `identify "$_[0]"` =~/(\d+)x(\d+)/;
   return ($1 || 0, $2 || 0);
@@ -57,9 +82,17 @@ sub image_size($){
 
 ### HTML writing functions
 
-## crete TOC
+## remove html tags from text, for html alt atribute
+sub rem_html($){
+  my $t=shift;
+  $t=~s/<[^>]*>//g;
+  $t=~s/[<>\"\']//g;
+  return $t;
+}
+
+## crete table of contents
 ## input: array of hashes with fields 'depth' and 'title'
-sub mk_toc($){
+sub html_toc($){
   my $hh = shift;
   my $dp=0; # prev depth
   my $d0=0; # initial depth
@@ -76,32 +109,26 @@ sub mk_toc($){
   for (;$dp>$d0;$dp--) {print '  'x($dp-2) . "</ul>\n";}
 }
 
-## remove html tags from text, for html alt atribute
-sub rem_html($){
-  my $t=shift;
-  $t=~s/<[^>]*>//g;
-  $t=~s/[<>\"\']//g;
-  return $t;
-}
 
-### Regular expressions for addphoto commands
-our $ph_re='^\\\photo([lr]?)\s+(\S+)\s*(.*)';
-our $head_re='^\\\h([1-4])(r?)\s+(.*)';
-our $keep_re='^\\\keep\s+(.*)';
+#### EXIF functions
 
-### EXIF
-
-# get exif-data as a hash, convert some values
+## Get exif-data as a hash, convert some values to human-readable form.
+## Returns hash ref with original exif fields and some converted fields:
+##  dat -- Exif.Photo.DateTimeOriginal or Exif.Image.DateTime,
+##  lon, lat, alt -- coordinates, altitude.
+## exiv2 program is needed.
 sub get_exif{
   my $file=shift;
   my $exif;
+  my $n;
+
+  # parse values from exiv2 output.
   foreach (`exiv2 -Pkv $file 2>/dev/null`){
     chomp;
     my ($k, $v) = split(/\s+/,$_,2);
     $exif->{$k}=$v;
   }
 
-  my $n;
   # DateTime: convert 2009:10:20 10:11:12 -> 2009/10/20 10:11:12
   foreach $n ('Exif.Image.DateTime',
               'Exif.Photo.DateTimeOriginal'){
@@ -128,5 +155,73 @@ sub get_exif{
   return $exif;
 }
 
+## print latlon coords with or without referense to google
+sub html_crd($$$){
+  my ($lat, $lon, $google) = @_[0..2];
+  return $google ?
+    sprintf('<a href="http://maps.google.com?t=h&output=embed&' .
+            'q=%.7f+%.7f&ll=%.7f,%.7f&z=13">%.7f %.7f</a><br/>',
+            $lat, $lon, $lat, $lon, $lat, $lon) :
+    sprintf('%.7f %.7f', $lat, $lon);
+}
+
+## print exif data in HTML for a given filename
+sub html_exif($$){
+  my $exif = addphoto::get_exif(shift);
+  my $google = shift;
+  my $ret='';
+
+  my %fw; # wrapped format strings
+  $fw{$_} = "\n      $msg{$_}<br/>"
+    foreach ('dat_fmt', 'alt_fmt', 'crd_fmt');
+
+  $ret .= sprintf($fw{dat_fmt}, $exif->{dat}) if exists $exif->{dat};
+  $ret .= sprintf($fw{alt_fmt}, $exif->{alt}) if exists $exif->{alt};
+  $ret .= sprintf($fw{crd_fmt}, html_crd($exif->{lat}, $exif->{lon}, $google))
+                   if exists $exif->{lat} &&  exists $exif->{lon};
+  return $ret;
+}
+
+#### THUMBNAILS, THMARKS and KEYS
+
+## Thumbnail images can is marked with red dot if there are
+## some marks on the image. The mark is also kept in the jpeg comment
+## These two functions can add and check mark. For remothing mark
+## just regenerate thumbnail...
+## exiv2 and mogrify (from ImageMagick) programs are needed.
+sub thmark_add($){
+  my $f=shift;
+  `mogrify -fill red -draw 'circle 10,10,12,12' "$f"`;
+  `exiv2 -c "<marked>" "$f" 2>/dev/null`;
+}
+sub thmark_check($){
+  my $f=shift;
+  return -r $f && `exiv2 -pc "$f" 2>/dev/null` =~ /<marked>/;
+}
+
+# Key is used to check do we need to update html-file
+# It is md5_hex sum of all parameters used for html-file
+# generation
+sub key_read($){
+  return '' if ! open IN, $_[0];
+  while (readline IN){return $1 if m|<!--KEY:([a-fA-F\d]*)-->|; }
+  return '';
+}
+
+## get fig image dimensions in "pixels"
+sub fig_im_size($$){
+  my ($fig, $img) = @_;
+
+  open IN, $fig or return (0,0);
+  while (readline IN){
+    next unless (/$img/);
+    readline(IN) =~
+      /^\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/;
+    my @x=sort($1, $3, $5, $7);
+    my @y=sort($2, $4, $6, $8);
+    return (($x[3]-$x[1])/$fig_res, ($y[3]-$y[1])/$fig_res);
+  }
+  return (0,0);
+}
 
 1;

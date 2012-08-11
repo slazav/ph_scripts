@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use addphoto;
 
-my $k=14.2875; # convert pixel -> fig units
+my $k=$addphoto::fig_res;
 
 #################################################################
 sub usage(){

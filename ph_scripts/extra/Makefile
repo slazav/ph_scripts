@@ -3,6 +3,7 @@ INSTALL?=/usr/bin/install
 
 SCRIPTS=\
   pd_init
+  ph_canon_rename
 
 all:
 
