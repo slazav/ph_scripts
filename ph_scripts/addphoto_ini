@@ -31,7 +31,7 @@ my @files = grep {/.jpe?g$/i || /.png$/i || /.tiff?$/i}
   addphoto::read_dir($dir);
 @files = grep {!/(^_|\/_)/} @files;
 
-## collect information about files: date, thumbnail width
+## create thumbnails, collect information about files: date, thumbnail width
 my %files;
 foreach (@files) {
   my ($d, $b, $e) = addphoto::path_split($_);
@@ -39,7 +39,7 @@ foreach (@files) {
 
   # create thumbnail image, get its width
   my $tfile="${d}_$b$e";
-  `ph_resize "$file" "$tfile" 200 100 600`
+  addphoto::image_resize($file, $tfile, (scale=>$addphoto::def_thscale))
     if addphoto::isolder($tfile, $file);
   my ($w, $h) = addphoto::image_size($tfile);
 

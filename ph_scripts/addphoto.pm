@@ -17,6 +17,8 @@ our $fig_res = 14.2875; # convert pixel -> fig units
 our $html_charset = 'koi8-r';
 our $fig_lang = 'ru_RU.KOI8-R';
 our $def_mstyle = 'aa_gif';
+our $def_scale = '800:400:10000';
+our $def_thscale = '200:120:600';
 
 #### Regular expressions for addphoto commands
 our $ph_re='^\\\photo([lr]?)\s+(\S+)\s*(.*)';
@@ -74,13 +76,73 @@ sub isolder($$){
   return (stat $_[0])[9] < (stat $_[1])[9];
 }
 
+#### IMAGE SIZE FUNCTIONS
+
 ## get image size (identify from ImageMagick is needed).
 sub image_size($){
   `identify "$_[0]"` =~/(\d+)x(\d+)/;
   return ($1 || 0, $2 || 0);
 }
 
-### HTML writing functions
+## calculate rescaling factor:
+# - "Usual" images will be scaled to fit into S1xS1 square;
+# - long images will not be smaller then S2 on short edge;
+# - very long images will not be larger than S3 on long edge;
+# - small images will not be modified.
+sub image_scfactor($$$$$){
+  my ($x, $y, $m1, $m2, $m3) = @_;
+  $x=1.0*$x; $y=1.0*$y;
+
+  my $kx = $x/$m1;
+  my $ky = $y/$m1;
+
+  my $k = $kx>$ky ? $kx:$ky;
+
+  $k = $x/$m2 if $x/$k < $m2;
+  $k = $y/$m2 if $y/$k < $m2;
+
+  $k = $x/$m3 if $x/$k > $m3;
+  $k = $y/$m3 if $y/$k > $m3;
+
+  $k = 1 if $k<=1;
+  return $k;
+}
+
+## resize image
+## options: scale(s1:s2:s3),quiet,dryrun
+sub image_resize{
+  my ($in, $out, %o) = @_;
+  my ($x, $y) = image_size($in);
+
+  my $s = $o{scale} || $def_scale;
+  my ($s1, $s2, $s3) = split(':', $s);
+
+  return unless $x && $y;
+  my $k = image_scfactor($x, $y, $s1, $s2, $s3);
+
+  if ($k == 1) {
+    printf STDERR "%-20s %4d x %4d -> no changes\n", $in, $x, $y
+      unless $o{quiet};
+    `cp -f "$in" "$out" 1>&2` if $out ne $in && !$o{dryrun};
+    return;
+  }
+
+  my ($xn, $yn) = (int($x/$k), int($y/$k));
+  printf STDERR "%-20s %4d x %4d -> %3d x %3d\n", $in, $x, $y, $xn, $yn
+    unless $o{quiet};
+
+  unless ($o{dryrun}){
+    if ($out ne $in){
+      `convert -geometry ${xn}x${yn} "$in" "$out" || cp -f "$in" "$out" 1>&2`;
+    }
+    else{
+      `convert -geometry ${xn}x${yn} "$in" "$in" ||: 1>&2`;
+    }
+  }
+}
+
+
+#### HTML writing functions
 
 ## remove html tags from text, for html alt atribute
 sub rem_html($){
@@ -211,6 +273,7 @@ sub key_read($){
 ## get fig image dimensions in "pixels"
 sub fig_im_size($$){
   my ($fig, $img) = @_;
+  $img=~s|.*/||;
 
   open IN, $fig or return (0,0);
   while (readline IN){

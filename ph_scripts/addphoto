@@ -16,7 +16,6 @@ Usage:
 Options:
     -h,--help    -- display help screen
     -q,--quiet   -- be quiet
-    -v,--verbose -- be more verbose
     -m,--mstyle  -- mark style (see addphoto_img)
     -g,--gmap    -- add google maps ref (see addphoto_img)
 
@@ -42,7 +41,6 @@ my %opts;
 GetOptions(
   "h|help"     => \$opts{help},
   "q|quiet"    => \$opts{quiet},
-  "v|verbose"  => \$opts{verb},
   "m|mstyle=s" => \$opts{mstyle},
   "g|gmap"     => \$opts{gmap},
 ) or usage();
@@ -105,13 +103,12 @@ for (my $i=0; $i<@ph; $i++){
   ## collect options for addphoto_img:
   my $o =
     ($opts{gmap}  ? ' -g':'') .
-    ($opts{verb}  ? ' -v':'') .
+    ($opts{quiet} ? ' -q':'') .
     ($opts{style} ? " -m \"$opts{style}\"":'') .
     ($t ? " -t \"$t\"":'') .
     " -p \"$prev\" -n \"$next\" -u \"$up\"";
-  print STDERR "$f $t\n" if $opts{verb};
   ## run addphoto_img
-  `addphoto_img $o "$dir$base/$f"`;
+  `addphoto_img $o "$dir$base/$f" 1>&2`;
 }
 
 ### create index html

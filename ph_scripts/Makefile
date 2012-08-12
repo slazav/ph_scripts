@@ -9,8 +9,7 @@ SCRIPTS=\
   addphoto_ini\
   addphoto_mkfig\
   ph_addgeo\
-  ph_resize\
-  ph_towww
+  ph_resize
 
 all:
 
