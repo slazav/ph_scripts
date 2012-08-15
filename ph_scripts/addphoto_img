@@ -1,0 +1,290 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use addphoto;
+use Getopt::Long qw(GetOptions);
+use Digest::MD5;
+
+##################################################
+sub usage(){
+print qq*
+$0 -- update html, marks and thumbnail for a single image
+
+Usage: $0 <options> <file>
+
+Options:
+    -h,--help           -- display help screen
+    -q,--quiet          -- be quiet
+    -g,--gmap           -- href\'s to maps.google.com
+    -t,--title <title>  -- set image title
+    -p,--prev <url>     -- url for "previous" reference
+    -u,--up <url>       -- url for "up" reference
+    -n,--next <url>     -- url for "next" reference
+    -m,--mstyle <style> -- style of marks
+
+Input files:
+  name.{jpg,png,tiff,gif}  -- sourse image
+  name.fig                 -- marks in fig format
+
+Generated files:
+  _name.{jpg,png,tiff,gif} -- thumbnail
+  name_m.gif               -- marks
+  name.htm                 -- html
+
+Mark styles:
+  simple_gif
+  aa_gif (default)
+  aa_gif_halo
+  aa_gif_dark_halo
+
+Report bugs to <slazav\@altlinux.org>
+*;
+exit(1);
+}
+
+##################################################
+
+### get options.
+my %opts;
+GetOptions(
+  "h|help"     => \$opts{help},
+  "q|quiet"    => \$opts{quiet},
+  "g|gmap"     => \$opts{gmap},
+  "m|mstyle=s" => \$opts{mstyle},
+  "t|title=s"  => \$opts{title},
+  "p|prev=s"   => \$opts{purl},
+  "n|next=s"   => \$opts{nurl},
+  "u|up=s"     => \$opts{uurl},
+) or usage();
+
+usage() if $opts{help} || @ARGV!=1;
+my $infile = shift;
+die "error: can't find file: $infile\n" unless -f $infile;
+
+# define some options
+$opts{$_} = $opts{$_} || ''
+  foreach ('title', 'purl', 'nurl', 'uurl', 'mstyle');
+
+my ($dir, $base, $ext) = addphoto::path_split($infile);
+my ($w, $h) = addphoto::image_size($infile);
+
+sub mark_create; # see below
+
+## update marks if fig-file exists and newer then mark file
+my $fig = "$dir$base.fig";
+my $mrk = -r $fig ? "$dir${base}_m.gif": '';
+if ($mrk && addphoto::isolder($mrk, $fig)){
+  print STDERR "  creating mark file: $mrk\n" unless $opts{quiet};
+  mark_create($infile, $fig, $mrk, $opts{mstyle})
+}
+
+## removing old-style marks (remove this code?)
+my $oldmrk = "$dir$base.gif";
+if ( -f $oldmrk && $oldmrk ne $infile){
+  print STDERR "Removing old-style gif mark: $oldmrk\n";
+  unlink($oldmrk);
+}
+
+## update thumbnail image:
+## - if it does not exist or it is older then the image
+## - if it is marked but no marks needed any more
+my $th = "${dir}_$base$ext";
+if (addphoto::isolder($th, $infile) ||
+    (addphoto::thmark_check($th)) && !$mrk){
+  print STDERR "  updating thumbnail: " if !$opts{quiet};
+  addphoto::image_resize($infile, $th,
+    (scale=>$addphoto::def_thscale, quiet=>$opts{quiet}));
+}
+## add thumbnail mark if needed
+addphoto::thmark_add($th)
+  if $mrk && !addphoto::thmark_check($th);
+
+## Create html if needed.
+## We use "key" to check that html-file is up-to-date.
+my $htm = "$dir$base.htm";
+my $key = Digest::MD5::md5_hex(join("\n",(
+  $opts{title}, $opts{purl}, $opts{uurl}, $opts{nurl},
+  $mrk ne '', $base.$ext, $w, $h)));
+my $oldkey = addphoto::key_read($htm);
+
+if ($key ne $oldkey){
+  print STDERR "  creating html file: $htm\n" unless $opts{quiet};
+
+  my $atitle=addphoto::rem_html($opts{title});
+  my $imgref = "$base$ext";
+  my $mrkref = "${base}_m.gif";
+
+  # default values for html style, scripts, top and bottom text
+  my $sty="a {text-decoration: none;}";
+  my $scr="";
+  my $top="";
+  my $btm="";
+
+  # make navigation panel
+  if ( $opts{purl} || $opts{uurl} || $opts{nurl}){
+    my $p = "<a href=\"$opts{purl}\">$addphoto::msg{pref}</a>" if $opts{purl};
+    my $u = "<a href=\"$opts{uurl}\">$addphoto::msg{uref}</a>" if $opts{uurl};
+    my $n = "<a href=\"$opts{nurl}\">$addphoto::msg{nref}</a>" if $opts{nurl};
+    $top .= qq*
+    <table class=nav><tr>
+      <td align=left>$p</td>
+      <td align=center>$u</td>
+      <td align=right>$n</td>
+    </tr></table>*;
+    $sty .= qq*
+      .nav { font: bold 10pt sans-serif; width: 100%}*;
+
+  }
+
+  # make title
+  if ( $opts{title} ){
+    $btm .= qq*
+    <div class=title>$opts{title}</div>*;
+    $sty .= qq*
+      .title { font: 16pt sans-serif;
+               margin: 0px; padding-bottom: 20px;
+               border-bottom: 1px solid #E0E0E0; width: 100%}*;
+  }
+
+  # main image
+  my $main=qq*
+    <img src="$imgref" width="$w" height="$h" alt="$atitle">*;
+
+  # marks + javascript for switching marks
+  if ($mrk){
+    $scr .= qq*
+    function update_vis(){
+      document.getElementById("marks").style.visibility=
+        document.forms[0].elements[0].checked?'visible':'hidden'}
+    function sw_marks(){
+      document.forms[0].elements[0].checked=
+        !document.forms[0].elements[0].checked}*;
+    $sty .= qq*
+      #image { position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px; }
+      #marks { position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: visible; }
+      .mrk { font: 8pt sans-serif; text-align: right; }*;
+    $btm .= qq*
+    <table align=right class=mrk><tr><td><form>
+      $addphoto::msg{mark_sw}
+      <input type="checkbox" checked onclick="update_vis()">
+      </form></td></tr></table>*;
+    $main = qq*
+    <div style="position: relative; height: ${h}px;"
+         onclick="sw_marks(); update_vis()">
+      <img id="image" src="$imgref" alt="$atitle">
+      <img id="marks" src="$mrkref">
+    </div>*;
+  }
+
+  # info from exif
+  my $exif = addphoto::html_exif($infile, $opts{google});
+  $btm .= qq*
+    <div class=exif>$exif
+    </div>*;
+  $sty .= qq*
+      .exif { font: bold 8pt sans-serif;}*;
+
+  # wrap style settings
+  if ($sty){
+    $sty = qq*
+    <style type="TEXT/CSS">$sty
+    </style>*;
+  }
+
+  # wrap javascript
+  if ($scr){
+    $scr = qq*
+    <script language=\"JavaScript\">$scr
+    </script>*;
+  }
+
+  # write html
+  open OUT, "> $htm" or die "can't open $htm: $!\n";
+  print OUT qq*<html> <!--KEY:$key-->
+  <head><title>$atitle</title>
+    <meta http-equiv="Content-Type" content="text/html;
+          charset=$addphoto::html_charset"/>$scr$sty
+  </head>
+  <body bgcolor="#FFFFFF">$top$main$btm
+  </body>*;
+  print OUT "\n</html>\n";
+  close OUT;
+}
+
+sub mark_create{
+  my ($infile, $fig, $mrk, $mstyle) = @_;
+  $mstyle = $addphoto::def_mstyle unless $mstyle;
+
+  my ($fw, $fh)=addphoto::fig_im_size($fig, $infile);
+  die "Bad fig file: $fig" unless $fw && $fh;
+  my $sc = ($h/$fh + $w/$fw) / 2;
+  $sc*=2 if $mstyle ne 'simple_gif';
+
+  ## create gif file
+  qx* LANG="$addphoto::fig_lang"\\
+   fig2dev -m$sc -j -Lgif -D +0:200 -t'#FFFFFF' "$fig" "$mrk" ||\\
+     rm -f -- "$mrk"*;
+
+  ## build script for convert program
+  # IE can only show transparent gifs, not png.
+  # We can't use semi-transparent png here :(
+  my $cmd;
+  if ($mstyle eq 'simple_gif'){
+  }
+  elsif ($mstyle eq 'aa_gif'){
+    $cmd=qq*
+        ( "$infile"
+          ( "$mrk" -alpha extract -blur 0x0.8 -threshold 15 -resize 50% )
+          +matte -compose copy-opacity -composite -blur 0x2 )
+        ( "$mrk" -resize 50% )
+        -compose over -composite
+        "$mrk"*;
+  }
+  elsif ($mstyle eq 'aa_gif_halo'){
+    $cmd = qq*
+        ( "$infile"
+          ( "$mrk" -alpha extract -blur 0x1.2 -threshold 15 -resize 50% )
+          +matte -compose copy-opacity -composite )
+        ( "$mrk"
+          ( -clone 0 +matte +level-colors white 
+            ( -clone 0 -alpha extract -blur 4x3 -level 0%,50% )
+            +matte -compose copy-opacity -composite )
+          -compose dst-over -composite
+          -resize 50% )
+        -compose over -composite
+        "$mrk"*;
+  }
+  elsif ($mstyle eq 'aa_gif_dark_halo'){
+    $cmd = qq*
+        ( "$infile"
+          ( "$mrk" -alpha extract -blur 0x1.2 -threshold 15 -resize 50% )
+          +matte -compose copy-opacity -composite )
+        ( "$mrk" +level 0,30%
+          ( -clone 0 +matte +level-colors white
+            ( -clone 0 -alpha extract -blur 4x3 -level 0%,50% )
+            +matte -compose copy-opacity -composite )
+          -compose dst-over -composite
+          -resize 50% )
+        -compose over -composite
+        "$mrk"*;
+   }
+   else{
+     die "Unknown mark style: $mstyle\n";
+   }
+   if ($cmd){
+     $cmd =~ s/([\(\)\n])/\\$1/g;
+     qx"convert $cmd";
+   }
+
+#  png_dark_halo
+#    $cmd=qq*
+#        "$mrk" +level 0,30%
+#        ( -clone 0 +matte +level-colors white
+#          ( -clone 0 -alpha extract -blur 4x3 -level 0%,50% )
+#          +matte -compose copy-opacity -composite )
+#        -compose dst-over -composite
+#        -resize 50%
+#        "$mrk"*;
+}
+
