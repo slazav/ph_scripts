@@ -120,25 +120,37 @@ if ($key ne $oldkey){
   my $scr="";
   my $top="";
   my $btm="";
+  my $head .=qq*
+    <meta http-equiv="Content-Type" content="text/html;
+      charset=$addphoto::html_charset"/>*;
 
   # make navigation panel
   if ( $opts{purl} || $opts{uurl} || $opts{nurl}){
-    my $p = "<a href=\"$opts{purl}\">$addphoto::msg{pref}</a>" if $opts{purl};
-    my $u = "<a href=\"$opts{uurl}\">$addphoto::msg{uref}</a>" if $opts{uurl};
-    my $n = "<a href=\"$opts{nurl}\">$addphoto::msg{nref}</a>" if $opts{nurl};
+    my $p = $addphoto::msg{pref};
+    my $u = $addphoto::msg{uref};
+    my $n = $addphoto::msg{nref};
+    $p = "<a href=\"$opts{purl}\">$p</a>" if $opts{purl};
+    $u = "<a href=\"$opts{uurl}\">$u</a>" if $opts{uurl};
+    $n = "<a href=\"$opts{nurl}\">$n</a>" if $opts{nurl};
     $top .= qq*
     <table class=nav><tr>
       <td align=left>$p</td>
       <td align=center>$u</td>
       <td align=right>$n</td>
     </tr></table>*;
+    # style
     $sty .= qq*
       .nav { font: bold 10pt sans-serif; width: 100%}*;
-
+    # navigation links in the head
+    $head .= "\n    <link rel=\"top\"       href=\"$opts{uurl}\">" if $opts{uurl};
+    $head .= "\n    <link rel=\"previous\"  href=\"$opts{purl}\">" if $opts{purl};
+    $head .= "\n    <link rel=\"next\"      href=\"$opts{nurl}\">" if $opts{nurl};
   }
 
   # make title
   if ( $opts{title} ){
+    $head .= qq*
+    <title>$atitle</title>*;
     $btm .= qq*
     <div class=title>$opts{title}</div>*;
     $sty .= qq*
@@ -202,9 +214,7 @@ if ($key ne $oldkey){
   # write html
   open OUT, "> $htm" or die "can't open $htm: $!\n";
   print OUT qq*<html> <!--KEY:$key-->
-  <head><title>$atitle</title>
-    <meta http-equiv="Content-Type" content="text/html;
-          charset=$addphoto::html_charset"/>$scr$sty
+  <head>$head$scr$sty
   </head>
   <body bgcolor="#FFFFFF">$top$main$btm
   </body>*;
