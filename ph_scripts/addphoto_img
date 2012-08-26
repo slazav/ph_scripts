@@ -47,6 +47,7 @@ exit(1);
 
 ### get options.
 my %opts;
+$opts{gmap}=1;
 GetOptions(
   "h|help"     => \$opts{help},
   "q|quiet"    => \$opts{quiet},
@@ -190,7 +191,7 @@ if ($key ne $oldkey){
   }
 
   # info from exif
-  my $exif = addphoto::html_exif($infile, $opts{google});
+  my $exif = addphoto::html_exif($infile, $opts{gmap});
   $btm .= qq*
     <div class=exif>$exif
     </div>*;
