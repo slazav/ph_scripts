@@ -144,16 +144,19 @@ foreach(<IN>){
     print "<font size=\"-1\"><i>$title</i></font></td>\n";
   }
 
-  elsif (/$addphoto::head_re/){ # \h commands
-    print( ($2 eq 'r'?'<hr>':'') .
-      "<a name=\"h" . ++$nh . "\"></a><h$1>$3</h$1>\n"); }
-
-  elsif (/^\\toc/){ addphoto::html_toc(\@hh); }
-  elsif (/^\\end/){ last; }
-  elsif (/^\\\\/){ s/^\\//; print; }
-  elsif (/^\\#/){} # skip comments
-  elsif (/^\\keep/){} # skip keep commands
-  elsif (/^\\/){ warn "warning: skipping unknown command: $_\n"; }
-  else{ print "</tr></table></p>\n" if $op_tab; $op_tab=0; print; }
+  else{
+    print "</tr></table></p>\n" if $op_tab; $op_tab=0; # close table
+    if (/$addphoto::head_re/){ # \h commands
+      print( ($2 eq 'r'?'<hr>':'') .
+        "<a name=\"h" . ++$nh . "\"></a><h$1>$3</h$1>\n"); }
+    elsif (/^\\toc/){ addphoto::html_toc(\@hh); }
+    elsif (/^\\end/){ last; }
+    elsif (/^\\\\/){ s/^\\//; print; }
+    elsif (/^\\#/){} # skip comments
+    elsif (/^\\keep/){} # skip keep commands
+    elsif (/^\\/){ warn "warning: skipping unknown command: $_\n"; }
+    else{ print; }
+  }
 }
+print "</tr></table></p>\n" if $op_tab;
 print STDERR "[Done: $np photos, $nh headers]\n" unless $opts{quiet};
