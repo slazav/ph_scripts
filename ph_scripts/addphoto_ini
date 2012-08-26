@@ -47,7 +47,7 @@ foreach (@files) {
   my $date='';
   if ($e=~/^.jp/){
     $date=`exiv2 -Pkv $file 2>/dev/null | grep '^Exif.Photo.DateTimeOriginal'`;
-    $date =~ s|Exif.Photo.DateTimeOriginal\s*\([\d:]+\).*|$1|;
+    $date =~ s|Exif.Photo.DateTimeOriginal\s*([\d:]+).*|$1|;
     $date =~ tr|:|/|;
   }
 
