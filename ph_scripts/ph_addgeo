@@ -137,7 +137,7 @@ foreach (sort keys %file_data){
       if ($alt2<-1000) {$alt2=$alt1;}
       my $k = ($ts-$t1)/($t2-$t1);
       my $lat = $lat1 + ($lat2-$lat1)*$k;
-      my $lon = $lon1 + ($lat2-$lat1)*$k;
+      my $lon = $lon1 + ($lon2-$lon1)*$k;
       my $alt = $alt1 + ($alt2-$alt1)*$k;
       print " [plt]" if $verbose;
       $txt_data{$name} = {lat=>$lat, lon=>$lon, alt=>$alt};
