@@ -59,7 +59,11 @@ foreach(<IN>){
     $keep{"$dir$base/$d$b.htm"} = 1;
     $keep{"$dir$base/${d}_$b$e"} = 1;
     # add mark files
-    $keep{"$dir$base/$d${b}_m$e"} = 1 if -f "$dir$base/$d$b.fig";
+    if ( -f "$dir$base/$d$b.fig"){
+      $keep{"$dir$base/$d$b.fig"} = 1;
+      $keep{"$dir$base/$d${b}_m.gif"} = 1;
+      $keep{"$dir$base/$d${b}_m.png"} = 1;
+    }
   }
   elsif (/^\\keep\s+(.*)/){  # keep command
     $keep{$_} = 1 foreach (glob "$dir$base/$1");
