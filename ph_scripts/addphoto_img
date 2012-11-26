@@ -59,9 +59,11 @@ GetOptions(
   "u|up=s"     => \$opts{uurl},
 ) or usage();
 
-usage() if $opts{help} || @ARGV!=1;
+usage() if $opts{help} || @ARGV<1;
 my $infile = shift;
+my @other = @ARGV;
 die "error: can't find file: $infile\n" unless -f $infile;
+foreach (@other) {die "error: can't find file: $_\n" unless -f $_;}
 
 # define some options
 $opts{$_} = $opts{$_} || ''
@@ -92,7 +94,7 @@ if ( -f $oldmrk && $oldmrk ne $infile){
 ## - if it is marked but no marks needed any more
 my $th = "${dir}_$base$ext";
 if (addphoto::isolder($th, $infile) ||
-    (addphoto::thmark_check($th)) && !$mrk){
+    (addphoto::thmark_check($th) && !$mrk && $#other<0)){
   print STDERR "  updating thumbnail: " if !$opts{quiet};
   addphoto::image_resize($infile, $th,
     (scale=>$addphoto::def_thscale, quiet=>$opts{quiet}));
@@ -101,12 +103,16 @@ if (addphoto::isolder($th, $infile) ||
 addphoto::thmark_add($th)
   if $mrk && !addphoto::thmark_check($th);
 
+addphoto::thmark_add($th)
+  if $#other > -0;
+
+
 ## Create html if needed.
 ## We use "key" to check that html-file is up-to-date.
 my $htm = "$dir$base.htm";
 my $key = Digest::MD5::md5_hex(join("\n",(
   $opts{title}, $opts{purl}, $opts{uurl}, $opts{nurl},
-  $mrk ne '', $base.$ext, $w, $h)));
+  $mrk ne '', $base.$ext, $w, $h, @other)));
 my $oldkey = addphoto::key_read($htm);
 
 if ($key ne $oldkey){
@@ -187,6 +193,33 @@ if ($key ne $oldkey){
          onclick="sw_marks(); update_vis()">
       <img id="image" src="$imgref" alt="$atitle">
       <img id="marks" src="$mrkref">
+    </div>*;
+  }
+  if ($#other>-1){
+    my $nn=$#other+2;
+    $scr .= qq*
+    var nv = 0;
+    function sw_imgs(){
+      nv=(nv+1)\%$nn;
+      for (var i=1;i<$nn;i++){
+        document.getElementById("img"+i).style.visibility=
+          i<=nv?'visible':'hidden'}}*;
+    $sty .= qq*
+      #img0 { position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px; }
+      .mrk { font: 8pt sans-serif; text-align: right; }*;
+
+    $main = qq*
+    <div style="position: relative; height: ${h}px;"
+         onclick="sw_imgs();">
+      <img id="img0" src="$imgref" alt="$atitle">*;
+    for(my $i=1; $i<=$#other+1; $i++){
+      my ($d, $b, $e) = addphoto::path_split($other[$i-1]);
+      $sty .= qq*
+        #img$i { position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: visible; }*;
+      $main .= qq*
+      <img id="img$i" src="$b$e" alt="$atitle">*;
+    }
+    $main .= qq*
     </div>*;
   }
 
