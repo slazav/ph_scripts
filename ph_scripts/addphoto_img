@@ -215,7 +215,7 @@ if ($key ne $oldkey){
     for(my $i=1; $i<=$#other+1; $i++){
       my ($d, $b, $e) = addphoto::path_split($other[$i-1]);
       $sty .= qq*
-        #img$i { position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: visible; }*;
+        #img$i { position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: hidden; }*;
       $main .= qq*
       <img id="img$i" src="$b$e" alt="$atitle">*;
     }
