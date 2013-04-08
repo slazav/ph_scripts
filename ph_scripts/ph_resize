@@ -1,0 +1,59 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use addphoto;
+use Getopt::Long qw(GetOptions);
+
+##################################################
+sub usage(){
+print qq*
+$0 -- smartly resize images
+
+Usage: $0 <options> <infile> <outfile>
+Usage: $0 -i <options> <file1> <file2> ...
+
+Options:
+    -h,--help           -- display help screen
+    -q,--quiet          -- be quiet
+    -s,--scale S1:S2:S3 -- size setting, default $addphoto::def_scale
+    -i,--inplace        -- modify files inplace
+    -d,--dryrun         -- do no changes, only show calculated sizes
+
+Image size calculations:
+- "Usual" images will be scaled to fit into S1xS1 square;
+- long images will not be smaller then S2 on short edge;
+- very long images will not be larger than S3 on long edge;
+- small images will not be modified.
+
+Example (for scale=800:400:10000):
+- 1280x1024 -> 800x600
+- 12800x1024 -> 5000x400
+- 12800x400 -> 10000x312
+- 8000x4000 -> no changes
+
+Report bugs to <slazav\@altlinux.org>
+*;
+exit(1);
+}
+##################################################
+
+### get options.
+my %opts;
+GetOptions(
+  "h|help"     => \$opts{help},
+  "q|quiet"    => \$opts{quiet},
+  "s|scale=s"  => \$opts{scale},
+  "i|inplace"  => \$opts{inplace},
+  "d|dryrun"   => \$opts{dryrun},
+) or usage();
+
+usage() if $opts{help};
+if (!$opts{inplace}){
+  usage() if @ARGV!=2;
+  addphoto::image_resize($ARGV[0], $ARGV[1], %opts);
+}
+else{
+  usage() if @ARGV<1;
+  addphoto::image_resize($_, $_, %opts) foreach(@ARGV);
+}
