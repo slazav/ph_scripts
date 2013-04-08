@@ -4,8 +4,8 @@ use strict;
 use Getopt::Long qw(GetOptions);
 
 my $tshift=0;
-my $txt_file='.geodata.txt';
-my $wpt_file='.geodata.wpt';
+my $txt_file='geodata.txt';
+my $wpt_file='geodata.wpt';
 my $plt_file;
 my $verbose=0;
 my $maxdist=200;
@@ -25,7 +25,7 @@ usage: [<options>] <jpeg files>
 options:
   -t --track    -- plt track file;
   -s --shift    -- time shift (hours), default 0;
-  -f --datafile -- datafile, default .geodata.txt;
+  -f --datafile -- datafile, default geodata.txt;
   -v --verbose  -- be more verbose.
   -D --maxdist  -- max distance between interpolated points, m (default: 200)
   -M --maxtime  -- max time between interpolated points, s (devault: none)
@@ -179,23 +179,6 @@ foreach (sort keys %file_data){
 }
 printf STDERR "Done, set geo-reference for $n/%i files.\n",
   scalar(keys %file_data) if $verbose;
-
-
-if ($plt_file){
-  print STDERR "Saving datafile...\n" if $verbose;
-  open OUT, ">$txt_file" or die "Can't open $txt_file\n";
-  foreach (sort keys %txt_data){
-    if ($txt_data{$_}){
-      printf OUT "%-20s %12.8f %13.8f %6.1f\n",
-         $_, $txt_data{$_}->{lat}, $txt_data{$_}->{lon}, $txt_data{$_}->{alt};
-    }
-    else{
-      print OUT "$_\n";
-    }
-  }
-  close OUT;
-  print STDERR "Done...\n" if $verbose;
-}
 
 print STDERR "Saving WPT-file...\n" if $verbose;
 open OUT, ">$wpt_file" or die "Can't open $wpt_file\n";
