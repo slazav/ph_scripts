@@ -14,7 +14,7 @@ SCRIPTS=\
 all:
 
 install:
-	mkdir -p -- "$(bindir)"
+	mkdir -p -- "$(bindir)" "$(datadir)/perl5"
 	$(INSTALL) -Dpm 755 $(SCRIPTS) "$(bindir)"
 	$(INSTALL) -Dpm 644 addphoto.pm "$(datadir)/perl5"
 
