@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use addphoto;
 
-my $max_width=600;
+my $max_width=800;
 
 ######################################################################
 

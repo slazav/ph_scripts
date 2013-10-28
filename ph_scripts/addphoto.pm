@@ -18,7 +18,7 @@ our $html_charset = 'koi8-r';
 our $fig_lang = 'ru_RU.KOI8-R';
 our $def_mstyle = 'aa_gif';
 our $def_scale = '800:400:10000';
-our $def_thscale = '200:120:600';
+our $def_thscale = '260:160:800';
 
 #### Regular expressions for addphoto commands
 our $ph_re='^\\\photo([lr]?)\s+(\S+)\s*(.*)';
