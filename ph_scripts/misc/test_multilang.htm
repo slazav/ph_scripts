@@ -1,0 +1,52 @@
+<html>
+<head>
+  <style type="TEXT/CSS">
+    .ru {visibility: normal;}
+  </style>
+    <script language="JavaScript">
+    var langs=['ru', 'en'];
+    var lang_def='ru';
+    function lang_set(lang){
+      for (var i=0; i<langs.length; i++){
+        document.getElementById("lang_"+langs[i]).style.fontWeight=
+           (langs[i]==lang) ? 'bold':'normal';
+        var els=document.getElementsByClassName(langs[i]);
+        for (var j=0; j<els.length; j++){
+          els[j].style.display=
+            (langs[i]==lang) ? 'block':'none'; }
+      }
+      // Update hrefs in class=intlink objects.
+      // Add/replace #lang=XX parameter
+      var els=document.getElementsByClassName('intlink');
+      for (var j=0; j<els.length; j++){
+        var i=els[j].href.search("#lang=..");
+        if (i==-1){
+          els[j].href = els[j].href+'#lang='+lang;
+        }
+        else{
+          var s=els[j].href.substr(i,8);
+          els[j].href = els[j].href.replace(s,'#lang='+lang);
+        }
+      }
+    }
+
+    // set language from document url
+    function lang_init(){
+      var i=document.URL.search("#lang=..");
+      if (i==-1) {lang_set(lang_def);}
+      else {lang_set(document.URL.substr(i+6,2));}
+    }
+    </script>
+</head>
+<body onload="lang_init()">
+<p>
+  <span class="ru_control" id=lang_ru onclick="lang_set('ru')">ru</span>
+  <span class="en_control" id=lang_en onclick="lang_set('en')">en</span>
+</p>
+
+<p class="ru">Русский текст</p>
+<p class="en">English text</p>
+
+<a href="test.htm" class='intlink'>text.htm</a>
+
+</html>
