@@ -277,12 +277,12 @@ sub fig_im_size($$){
 
   open IN, $fig or return (0,0);
   while (readline IN){
-    next unless (/$img/);
+    next unless (/^\s+\d+\s+$img/);
     readline(IN) =~
       /^\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/;
     my @x=sort($1, $3, $5, $7);
     my @y=sort($2, $4, $6, $8);
-    return (($x[3]-$x[1])/$fig_res, ($y[3]-$y[1])/$fig_res);
+    return (abs($x[3]-$x[1])/$fig_res, abs($y[3]-$y[1])/$fig_res);
   }
   return (0,0);
 }
