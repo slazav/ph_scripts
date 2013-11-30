@@ -33,7 +33,7 @@ our $lang_script=qq*
     var langs=['ru', 'en'];
     var lang_def='ru';
     function lang_set(lang){
-      document.cookie = "lang=" + lang;
+      document.cookie = "lang=" + lang + "; path=/";
       for (var i=0; i<langs.length; i++){
         document.getElementById("lang_"+langs[i]).style.fontWeight=
           (langs[i]==lang) ? 'bold':'normal';
