@@ -18,6 +18,7 @@ Options:
     -q,--quiet   -- be quiet
     -m,--mstyle  -- mark style (see addphoto_img)
     -g,--gmap    -- add google maps ref (see addphoto_img)
+    -l,--lang    -- add language support
 
 Input file syntax:
 Commands are started at the beginning of line with '\\' symbol.
@@ -43,6 +44,7 @@ GetOptions(
   "q|quiet"    => \$opts{quiet},
   "m|mstyle=s" => \$opts{mstyle},
   "g|gmap"     => \$opts{gmap},
+  "l|lang"     => \$opts{lang},
 ) or usage();
 
 usage() if $opts{help} || @ARGV!=1;
@@ -73,10 +75,16 @@ foreach(<IN>){
       warn "Skip image with non-relative path: %2\n";
       next;
     }
-    push @ph, {file=>$2, title=>$3};
+    my ($f, $t) = ($2, $3);
+    $t =~ s/\[(ru|en):/<div class=$1>/gi if $opts{lang};
+    $t =~ s/\]/<\/div>/g if $opts{lang};
+    push @ph, {file=>$f, title=>$t};
   }
   elsif (/$addphoto::head_re/){  # headers
-    push @hh, {depth=>$1, title=>$3};
+    my ($d, $t) = ($1, $3);
+    $t =~ s/\[(ru|en):/<div class=$1>/gi if $opts{lang};
+    $t =~ s/\]/<\/div>/g if $opts{lang};
+    push @hh, {depth=>$d, title=>$t};
   }
 }
 
@@ -104,6 +112,7 @@ for (my $i=0; $i<@ph; $i++){
   my $o =
     ($opts{gmap}  ? ' -g':'') .
     ($opts{quiet} ? ' -q':'') .
+    ($opts{lang}  ? ' -l':'') .
     ($opts{style} ? " -m \"$opts{style}\"":'') .
     ($t ? " -t \"$t\"":'') .
     " -p \"$prev\" -n \"$next\" -u \"$up\"";
@@ -122,7 +131,7 @@ foreach(<IN>){
   if (/$addphoto::ph_re/){ # \photo commands
     $np++;
     my $al = ($1 eq 'r'?'right':($1 eq 'l'? 'left':'center'));
-    my ($img, $title) = ($2, $3);
+    my ($img, $title) = ($ph[$np-1]->{file}, $ph[$np-1]->{title});
 
     # paths of html page and thumbnail image from album index
     my ($id, $ib, $ie) = addphoto::path_split($img);
@@ -143,12 +152,14 @@ foreach(<IN>){
     print "  width=$w height=$h></a><br>\n";
     print "<font size=\"-1\"><i>$title</i></font></td>\n";
   }
-
   else{
     print "</tr></table></p>\n" if $op_tab; $op_tab=0; # close table
     if (/$addphoto::head_re/){ # \h commands
+      $nh++;
+      my ($depth, $title) = ($ph[$np-1]->{depth}, $ph[$np-1]->{title});
       print( ($2 eq 'r'?'<hr>':'') .
-        "<a name=\"h" . ++$nh . "\"></a><h$1>$3</h$1>\n"); }
+        "<a name=\"h" . $nh . "\"></a><h$depth>$title</h$1>\n");
+    }
     elsif (/^\\toc/){ addphoto::html_toc(\@hh); }
     elsif (/^\\end/){ last; }
     elsif (/^\\\\/){ s/^\\//; print; }

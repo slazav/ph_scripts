@@ -22,6 +22,7 @@ Options:
     -u,--up <url>       -- url for "up" reference
     -n,--next <url>     -- url for "next" reference
     -m,--mstyle <style> -- style of marks
+    -l,--lang           -- languages support
 
 Input files:
   name.{jpg,png,tiff,gif}  -- sourse image
@@ -57,6 +58,7 @@ GetOptions(
   "p|prev=s"   => \$opts{purl},
   "n|next=s"   => \$opts{nurl},
   "u|up=s"     => \$opts{uurl},
+  "l|lang"     => \$opts{lang},
 ) or usage();
 
 usage() if $opts{help} || @ARGV<1;
@@ -125,17 +127,55 @@ if ($key ne $oldkey){
   # default values for html style, scripts, top and bottom text
   my $sty="a {text-decoration: none;}";
   my $scr="";
+  my $init="";
   my $top="";
   my $btm="";
   my $head .=qq*
     <meta http-equiv="Content-Type" content="text/html;
       charset=$addphoto::html_charset"/>*;
 
+  # make language switch
+  if ($opts{lang}){
+    $top  .= $addphoto::html_lang_switch;
+    $init .= ' onload="lang_init()"';
+    my $s="${dir}lang.js";
+    unless (-s $s){
+      open  O, ">$s" or die "Can't open $s: $!\n";
+      print O $addphoto::lang_script;
+      close O;
+    }
+    $scr  .= '
+      <script type="text/JavaScript" src="lang.js"></script>';
+    $sty  .= qq*
+      .ru {display: inline;}
+      .en {display: none;}*;
+  }
+
+  # make title
+  if ( $opts{title} ){
+    $head .= qq*
+    <title>$atitle</title>*;
+    $btm .= qq*
+    <div class=title>$opts{title}</div>*;
+    $sty .= qq*
+      .title { font: 16pt sans-serif;
+               margin: 0px; padding-bottom: 20px;
+               border-bottom: 1px solid #E0E0E0; width: 100%}*;
+  }
+
   # make navigation panel
   if ( $opts{purl} || $opts{uurl} || $opts{nurl}){
-    my $p = $addphoto::msg{pref};
-    my $u = $addphoto::msg{uref};
-    my $n = $addphoto::msg{nref};
+    my ($p,$u,$n);
+    if ($opts{lang}){
+      $p = $addphoto::msgl{pref};
+      $u = $addphoto::msgl{uref};
+      $n = $addphoto::msgl{nref};
+    }
+    else {
+      $p = $addphoto::msg{pref};
+      $u = $addphoto::msg{uref};
+      $n = $addphoto::msg{nref};
+    }
     $p = "<a href=\"$opts{purl}\">$p</a>" if $opts{purl};
     $u = "<a href=\"$opts{uurl}\">$u</a>" if $opts{uurl};
     $n = "<a href=\"$opts{nurl}\">$n</a>" if $opts{nurl};
@@ -154,38 +194,28 @@ if ($key ne $oldkey){
     $head .= "\n    <link rel=\"next\"      href=\"$opts{nurl}\">" if $opts{nurl};
   }
 
-  # make title
-  if ( $opts{title} ){
-    $head .= qq*
-    <title>$atitle</title>*;
-    $btm .= qq*
-    <div class=title>$opts{title}</div>*;
-    $sty .= qq*
-      .title { font: 16pt sans-serif;
-               margin: 0px; padding-bottom: 20px;
-               border-bottom: 1px solid #E0E0E0; width: 100%}*;
-  }
-
   # main image
   my $main=qq*
     <img src="$imgref" width="$w" height="$h" alt="$atitle">*;
 
   # marks + javascript for switching marks
   if ($mrk){
-    $scr .= qq*
-    function update_vis(){
-      document.getElementById("marks").style.visibility=
-        document.forms[0].elements[0].checked?'visible':'hidden'}
-    function sw_marks(){
-      document.forms[0].elements[0].checked=
-        !document.forms[0].elements[0].checked}*;
+    my $s="${dir}mark.js";
+    unless (-s $s){
+      open O, "> $s" or die "Can't open $s: $!\n";
+      print O $addphoto::mark_script;
+      close O;
+    }
+    $scr .= '
+      <script type="text/JavaScript" src="mark.js"></script>';
     $sty .= qq*
       #image { position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px; }
       #marks { position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: visible; }
       .mrk { font: 8pt sans-serif; text-align: right; }*;
+    my $msg_mark = $opts{lang}? $addphoto::msgl{mark_sw}:$addphoto::msg{mark_sw};
     $btm .= qq*
     <table align=right class=mrk><tr><td><form>
-      $addphoto::msg{mark_sw}
+      $msg_mark
       <input type="checkbox" checked onclick="update_vis()">
       </form></td></tr></table>*;
     $main = qq*
@@ -224,7 +254,7 @@ if ($key ne $oldkey){
   }
 
   # info from exif
-  my $exif = addphoto::html_exif($infile, $opts{gmap});
+  my $exif = addphoto::html_exif($infile, \%opts);
   $btm .= qq*
     <div class=exif>$exif
     </div>*;
@@ -238,19 +268,12 @@ if ($key ne $oldkey){
     </style>*;
   }
 
-  # wrap javascript
-  if ($scr){
-    $scr = qq*
-    <script language=\"JavaScript\">$scr
-    </script>*;
-  }
-
   # write html
   open OUT, "> $htm" or die "can't open $htm: $!\n";
   print OUT qq*<html> <!--KEY:$key-->
   <head>$head$scr$sty
   </head>
-  <body bgcolor="#FFFFFF">$top$main$btm
+  <body bgcolor="#FFFFFF"$init>$top$main$btm
   </body>*;
   print OUT "\n</html>\n";
   close OUT;

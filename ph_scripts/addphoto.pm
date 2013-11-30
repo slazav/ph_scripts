@@ -3,14 +3,72 @@ package addphoto;
 #### MESSAGES
 
 our %msg = (
-  dat_fmt => 'Дата и время съемки: %s',
-  alt_fmt => 'Высота: %d м',
-  crd_fmt => 'Координаты: %s',
+  dat_fmt => 'Дата и время съемки: ',
+  alt_fmt => 'Высота, м: ',
+  crd_fmt => 'Координаты: ',
   pref => '&lt;&lt; предыдущая',
   uref => 'к оглавлению',
   nref => 'следующая &gt;&gt;',
   mark_sw => 'для отключения пометок щелкните мышью по картинке',
 );
+
+our %msgl = (
+  dat_fmt => '<div class=ru>Дата и время: </div>'.
+             '<div class=en>Date and time: </div>',
+  alt_fmt => '<div class=ru>Высота, м: </div>'.
+             '<div class=en>Altitude, m: </div>',
+  crd_fmt => '<div class=ru>Широта и долгота: </div>'.
+             '<div class=en>Latitude and longitude: </div>',
+  pref => '<div class=ru>&lt;&lt; предыдущая</div>'.
+          '<div class=en>&lt;&lt; prev.</div>',
+  uref => '<div class=ru>к оглавлению</div>'.
+          '<div class=en>up</div>',
+  nref => '<div class=ru>следующая &gt;&gt;</div>'.
+          '<div class=en>next &gt;&gt;</div>',
+  mark_sw => '<div class=ru>для отключения пометок щелкните мышью по картинке</div>'.
+             '<div class=en>push picture to switch marks</div>',
+);
+
+our $lang_script=qq*
+    var langs=['ru', 'en'];
+    var lang_def='ru';
+    function lang_set(lang){
+      document.cookie = "lang=" + lang;
+      for (var i=0; i<langs.length; i++){
+        document.getElementById("lang_"+langs[i]).style.fontWeight=
+          (langs[i]==lang) ? 'bold':'normal';
+        var els=document.getElementsByClassName(langs[i]);
+        for (var j=0; j<els.length; j++){
+          els[j].style.display = (langs[i]==lang) ? 'inline':'none'; }
+      }
+    }
+    // set language from document url
+    function lang_init(){
+      var cookie = document.cookie;
+      var i1 = cookie.indexOf(" lang=");
+      if (i1 == -1) { i1 = cookie.indexOf("lang="); }
+      if (i1 == -1) {lang_set(lang_def);}
+      else {
+        i1 = cookie.indexOf("=", i1) + 1;
+        var i2 = cookie.indexOf(";", i1);
+        if (i2 == -1) { i2 = cookie.length; }
+        lang_set(cookie.substring(i1,i2));
+      }
+    }*;
+
+our $mark_script = qq*
+    function update_vis(){
+      document.getElementById("marks").style.visibility=
+        document.forms[0].elements[0].checked?'visible':'hidden'}
+    function sw_marks(){
+      document.forms[0].elements[0].checked=
+        !document.forms[0].elements[0].checked}*;
+
+our $html_lang_switch = qq*
+  <div align=right><font color=blue style='cursor: pointer;'>
+    <u><span class="ru_control" id=lang_ru onclick="lang_set('ru')">ru</span></u>
+    <u><span class="en_control" id=lang_en onclick="lang_set('en')">en</span></u>
+  </font></div>*;
 
 # some settings:
 our $fig_res = 14.2875; # convert pixel -> fig units
@@ -230,19 +288,26 @@ sub html_crd($$$){
 ## print exif data in HTML for a given filename
 sub html_exif($$){
   my $exif = addphoto::get_exif(shift);
-  my $google = shift;
+  my $opts = shift;
   my $ret='';
 
   my %fw; # wrapped format strings
-  $fw{$_} = "\n      $msg{$_}<br/>"
-    foreach ('dat_fmt', 'alt_fmt', 'crd_fmt');
 
-  $ret .= sprintf($fw{dat_fmt}, $exif->{dat}) if exists $exif->{dat};
-  $ret .= sprintf($fw{alt_fmt}, $exif->{alt}) if exists $exif->{alt};
-  $ret .= sprintf($fw{crd_fmt}, html_crd($exif->{lat}, $exif->{lon}, $google))
+  if ($opts->{lang}){
+    $fw{$_} = "\n      <br/>$msgl{$_}"
+      foreach ('dat_fmt', 'alt_fmt', 'crd_fmt');
+  }
+  else {
+    $fw{$_} = "\n      <br/>$msg{$_}"
+      foreach ('dat_fmt', 'alt_fmt', 'crd_fmt');
+  }
+  $ret .= $fw{dat_fmt} . $exif->{dat} if exists $exif->{dat};
+  $ret .= $fw{alt_fmt} . $exif->{alt} if exists $exif->{alt};
+  $ret .= $fw{crd_fmt} . html_crd($exif->{lat}, $exif->{lon}, $opts->{gmap})
                    if exists $exif->{lat} &&  exists $exif->{lon};
   return $ret;
 }
+
 
 #### THUMBNAILS, THMARKS and KEYS
 
