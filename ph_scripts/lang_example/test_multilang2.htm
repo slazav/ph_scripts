@@ -1,0 +1,43 @@
+<html>
+<head>
+  <style type="TEXT/CSS">
+    .ru {visibility: normal;}
+  </style>
+    <script language="JavaScript">
+    var langs=['ru', 'en'];
+    var lang_def='ru';
+    function lang_set(lang){
+      document.cookie = "lang=" + lang + "; path=/;";
+      for (var i=0; i<langs.length; i++){
+        document.getElementById("lang_"+langs[i]).style.fontWeight=
+          (langs[i]==lang) ? 'bold':'normal';
+        var els=document.getElementsByClassName(langs[i]);
+        for (var j=0; j<els.length; j++){
+          els[j].style.display = (langs[i]==lang) ? 'block':'none'; }
+      }
+    }
+    // set language from document url
+    function lang_init(){
+      var cookie = document.cookie;
+      var i1 = cookie.indexOf(" lang=");
+      if (i1 == -1) { i1 = cookie.indexOf("lang="); }
+      if (i1 == -1) {lang_set(lang_def);}
+      else {
+        i1 = cookie.indexOf("=", i1) + 1;
+        var i2 = cookie.indexOf(";", i1);
+        if (i2 == -1) { i2 = cookie.length; }
+        lang_set(cookie.substring(i1,i2));
+      }
+    }
+    </script>
+</head>
+<body onload="lang_init()">
+<p><font color=blue>
+  <u><span class="ru_control" id=lang_ru onclick="lang_set('ru')">ru</span></u>
+  <u><span class="en_control" id=lang_en onclick="lang_set('en')">en</span></u>
+</font></u>
+
+<p class="ru">Русский текст</p>
+<p class="en">English text</p>
+
+</html>
