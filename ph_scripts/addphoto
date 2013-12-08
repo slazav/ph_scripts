@@ -156,7 +156,7 @@ foreach(<IN>){
     print "</tr></table></p>\n" if $op_tab; $op_tab=0; # close table
     if (/$addphoto::head_re/){ # \h commands
       $nh++;
-      my ($depth, $title) = ($ph[$np-1]->{depth}, $ph[$np-1]->{title});
+      my ($depth, $title) = ($hh[$nh-1]->{depth}, $hh[$nh-1]->{title});
       print( ($2 eq 'r'?'<hr>':'') .
         "<a name=\"h" . $nh . "\"></a><h$depth>$title</h$1>\n");
     }
