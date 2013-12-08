@@ -69,6 +69,8 @@ foreach(<IN>){
     $keep{$_} = 1 foreach (glob "$dir$base/$1");
   }
 }
+$keep{"lang.js"} = 1;
+$keep{"mark.js"} = 1;
 
 ### get files to delete
 my @del;
