@@ -279,7 +279,7 @@ sub get_exif{
 sub html_crd($$$){
   my ($lat, $lon, $google) = @_[0..2];
   return $google ?
-    sprintf('<a href="http://maps.google.com?t=h&output=embed&' .
+    sprintf('<a href="http://maps.google.com?t=h&' .
             'q=%.7f+%.7f&ll=%.7f,%.7f&z=13">%.7f %.7f</a><br/>',
             $lat, $lon, $lat, $lon, $lat, $lon) :
     sprintf('%.7f %.7f', $lat, $lon);
