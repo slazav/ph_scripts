@@ -6,6 +6,7 @@ use Getopt::Long qw(GetOptions);
 my $tshift=0;
 my $txt_file='geodata.txt';
 my $wpt_file='geodata.wpt';
+my $e_file='';
 my $plt_file;
 my $verbose=0;
 my $maxdist=200;
@@ -15,6 +16,7 @@ GetOptions(
   "s|shift=f"    => \$tshift,
   "t|track=s"    => \$plt_file,
   "f|datafile=s" => \$txt_file,
+  "e|putempty=s" => \$e_file,
   "v|verbose"    => \$verbose,
   "D|maxdist=f"  => \$maxdist,
   "M|maxtime=f"  => \$maxtime,
@@ -23,12 +25,13 @@ and ( my @files = @ARGV)
 or die qq*$0 -- put geo information from Ozi plt file to exif.
 usage: [<options>] <jpeg files>
 options:
-  -t --track    -- plt track file;
-  -s --shift    -- time shift (hours), default 0;
-  -f --datafile -- datafile, default geodata.txt;
-  -v --verbose  -- be more verbose.
-  -D --maxdist  -- max distance between interpolated points, m (default: 200)
-  -M --maxtime  -- max time between interpolated points, s (devault: none)
+  -t --track <file>    -- plt track file
+  -s --shift <value>   -- time shift (hours), default 0
+  -f --datafile <file> -- get data from datafile, default geodata.txt
+  -e --putempty <file> -- put filenames without geodata into the file
+  -v --verbose  -- be more verbose
+  -D --maxdist <value> -- max distance between interpolated points, m (default: 200)
+  -M --maxtime <value> -- max time between interpolated points, s (devault: none)
 *;
 
 my $dfn="0x9003";
@@ -94,6 +97,9 @@ foreach my $name (@files){
 printf STDERR "Done, %i/%i files processed.\n",
    scalar(keys %txt_data), scalar(@files) if $verbose;
 
+if ($e_file){
+  open EFILE, "> $e_file"  or die "can't open: $e_file: $!\n";
+}
 
 print STDERR "Processing files...\n" if $verbose;
 my $n=0;
@@ -173,12 +179,20 @@ foreach (sort keys %file_data){
   }
   else {
     $txt_data{$name} = 0;
+    if ($e_file){
+      print EFILE "$name\n";
+    }
   }
   `exiv2 $args $name`;
   print "\n" if $verbose;
 }
 printf STDERR "Done, set geo-reference for $n/%i files.\n",
   scalar(keys %file_data) if $verbose;
+
+if ($e_file){
+  close EFILE  or die "can't close: $e_file: $!\n";
+}
+
 
 print STDERR "Saving WPT-file...\n" if $verbose;
 open OUT, ">$wpt_file" or die "Can't open $wpt_file\n";
