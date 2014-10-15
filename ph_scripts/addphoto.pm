@@ -75,7 +75,7 @@ our $fig_res = 14.2875; # convert pixel -> fig units
 our $html_charset = 'koi8-r';
 our $fig_lang = 'ru_RU.KOI8-R';
 our $def_mstyle = 'aa_gif';
-our $def_scale = '800:400:10000';
+our $def_scale = '800:600:10000';
 our $def_thscale = '260:160:800';
 
 #### Regular expressions for addphoto commands

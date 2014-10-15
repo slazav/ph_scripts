@@ -26,7 +26,7 @@ Image size calculations:
 - very long images will not be larger than S3 on long edge;
 - small images will not be modified.
 
-Example (for scale=800:400:10000):
+Example (for scale=800:600:10000):
 - 1280x1024 -> 800x600
 - 12800x1024 -> 5000x400
 - 12800x400 -> 10000x312
