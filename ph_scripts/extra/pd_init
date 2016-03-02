@@ -43,5 +43,5 @@ exifautotran *.jpg
 mkdir .src
 cp *.jpg .src/
 
-chmod 444 .src/*.jpg
-chmod 555 .src
+#chmod 444 .src/*.jpg
+#chmod 555 .src
