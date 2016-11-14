@@ -23,6 +23,7 @@ Simple scripts for making html photoalbums and photo handling
 
 %files
 %_bindir/*
+%_datadir/perl5/*
 
 %changelog
 * Mon Dec 28 2009 Vladislav Zavjalov <slazav@altlinux.org> 0.3-alt1
