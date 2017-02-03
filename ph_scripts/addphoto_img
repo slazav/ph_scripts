@@ -196,7 +196,7 @@ if ($key ne $oldkey){
 
   # main image
   my $main=qq*
-    <img src="$imgref" width="$w" height="$h" alt="$atitle">*;
+    <img src='$imgref' width='$w' height='$h' alt='$atitle'>*;
 
   # marks + javascript for switching marks
   if ($mrk){

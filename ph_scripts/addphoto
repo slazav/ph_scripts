@@ -100,6 +100,7 @@ for (my $i=0; $i<@ph; $i++){
   my $t = $ph[$i]->{title};
   die "can't find file: $dir$base$f\n"
     unless -f "$dir$base$f";
+  $t=~s/\"/\\\"/g;
 
   ## previous and next files:
   my $fp = $ph[$i==0? $#ph : $i-1]->{file};
@@ -118,9 +119,9 @@ for (my $i=0; $i<@ph; $i++){
     ($opts{gmap}  ? ' -g':'') .
     ($opts{quiet} ? ' -q':'') .
     ($opts{lang}  ? ' -l':'') .
-    ($opts{style} ? " -m \"$opts{style}\"":'') .
+    ($opts{style} ? " -m '$opts{style}'":'') .
     ($t ? " -t \"$t\"":'') .
-    " -p \"$prev\" -n \"$next\" -u \"$up\"";
+    " -p '$prev' -n '$next' -u '$up'";
   ## run addphoto_img
   `addphoto_img $o "$dir$base$f" 1>&2`;
 }
@@ -151,9 +152,9 @@ foreach(<IN>){
 
     print "<p><table border=0 align=$al cellpadding=10><tr>\n"
       if !$op_tab; $op_tab=1;
-    print "<td width=$w valign=top><a name=\"ph$np\"></a>\n";
-    print "<a href=\"$hfile\">\n";
-    print "<img src=\"$tfile\" alt=\"$atitle\"\n";
+    print "<td width=$w valign=top><a name='ph$np'></a>\n";
+    print "<a href='$hfile'>\n";
+    print "<img src='$tfile' alt='$atitle'\n";
     print "  width=$w height=$h></a><br>\n";
     print "<font size=\"-1\"><i>$title</i></font></td>\n";
   }
@@ -163,7 +164,7 @@ foreach(<IN>){
       $nh++;
       my ($depth, $title) = ($hh[$nh-1]->{depth}, $hh[$nh-1]->{title});
       print( ($2 eq 'r'?'<hr>':'') .
-        "<a name=\"h" . $nh . "\"></a><h$depth>$title</h$1>\n");
+        "<a name='h" . $nh . "'></a><h$depth>$title</h$1>\n");
     }
     elsif (/^\\toc/){ addphoto::html_toc(\@hh); }
     elsif (/^\\end/){ last; }

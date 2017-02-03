@@ -206,7 +206,7 @@ sub image_resize{
 sub rem_html($){
   my $t=shift;
   $t=~s/<[^>]*>//g;
-  $t=~s/[<>\"\']//g;
+  $t=~s/[<>\']//g;
   return $t;
 }
 
