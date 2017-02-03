@@ -26,7 +26,7 @@ our %msgl = (
   nref => '<div class=ru>следующая &gt;&gt;</div>'.
           '<div class=en>next &gt;&gt;</div>',
   mark_sw => '<div class=ru>для отключения пометок щелкните мышью по картинке</div>'.
-             '<div class=en>push picture to switch marks</div>',
+             '<div class=en>click the picture to switch marks</div>',
 );
 
 our $lang_script=qq*
