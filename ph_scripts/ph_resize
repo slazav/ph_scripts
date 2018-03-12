@@ -17,6 +17,7 @@ Options:
     -h,--help           -- display help screen
     -q,--quiet          -- be quiet
     -s,--scale S1:S2:S3 -- size setting, default $addphoto::def_scale
+    -q,--quality <n>    -- jpeg quality, default $addphoto::def_quality
     -i,--inplace        -- modify files inplace
     -d,--dryrun         -- do no changes, only show calculated sizes
 
@@ -41,11 +42,12 @@ exit(1);
 ### get options.
 my %opts;
 GetOptions(
-  "h|help"     => \$opts{help},
-  "q|quiet"    => \$opts{quiet},
-  "s|scale=s"  => \$opts{scale},
-  "i|inplace"  => \$opts{inplace},
-  "d|dryrun"   => \$opts{dryrun},
+  "h|help"      => \$opts{help},
+  "q|quiet"     => \$opts{quiet},
+  "s|scale=s"   => \$opts{scale},
+  "q|quality=s" => \$opts{quality},
+  "i|inplace"   => \$opts{inplace},
+  "d|dryrun"    => \$opts{dryrun},
 ) or usage();
 
 usage() if $opts{help};

@@ -75,6 +75,7 @@ our $fig_res = 14.2875; # convert pixel -> fig units
 our $html_charset = 'koi8-r';
 our $fig_lang = 'ru_RU.KOI8-R';
 our $def_mstyle = 'aa_gif';
+our $def_quality = '90';
 our $def_scale = '800:600:10000';
 our $def_thscale = '260:160:800';
 
@@ -173,6 +174,7 @@ sub image_resize{
   my ($x, $y) = image_size($in);
 
   my $s = $o{scale} || $def_scale;
+  my $q = $o{quality} || $def_quality;
   my ($s1, $s2, $s3) = split(':', $s);
 
   return unless $x && $y;
@@ -191,10 +193,10 @@ sub image_resize{
 
   unless ($o{dryrun}){
     if ($out ne $in){
-      `convert -geometry ${xn}x${yn} "$in" "$out" || cp -f "$in" "$out" 1>&2`;
+      `convert -geometry ${xn}x${yn} -quality "$q" "$in" "$out" || cp -f "$in" "$out" 1>&2`;
     }
     else{
-      `convert -geometry ${xn}x${yn} "$in" "$in" ||: 1>&2`;
+      `convert -geometry ${xn}x${yn} -quality "$q" "$in" "$in" ||: 1>&2`;
     }
   }
 }
