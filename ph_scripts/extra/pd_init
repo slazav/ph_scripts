@@ -11,6 +11,7 @@ for i in $(find . -maxdepth 1 -name '*.JPG' -or -name '*.jpg'); do
 
   n="$(echo "$i" | tr 'A-Z' 'a-z')"
   n="${n#img_}"
+  n="${n#dsc}"
 
   [ "$n" != "$i" ] || continue
 
