@@ -39,6 +39,9 @@ Mark styles:
   aa_gif_halo
   aa_gif_dark_halo
 
+Making a page with many images: $0 <options> <file1> <file2> ...
+
+
 Report bugs to <slazav\@altlinux.org>
 *;
 exit(1);
@@ -227,13 +230,14 @@ if ($key ne $oldkey){
   }
   if ($#other>-1){
     my $nn=$#other+2;
-    $scr .= qq*
-    var nv = 0;
-    function sw_imgs(){
-      nv=(nv+1)\%$nn;
-      for (var i=1;i<$nn;i++){
-        document.getElementById("img"+i).style.visibility=
-          i<=nv?'visible':'hidden'}}*;
+    $scr .= qq*    <script type="text/JavaScript">
+      var nv = 0;
+      function sw_imgs(){
+        nv=(nv+1)\%$nn;
+        for (var i=1;i<$nn;i++){
+          document.getElementById("img"+i).style.visibility=
+            i<=nv?'visible':'hidden'}}
+    </script>*;
     $sty .= qq*
       #img0 { position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px; }
       .mrk { font: 8pt sans-serif; text-align: right; }*;
