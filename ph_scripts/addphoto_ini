@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 use addphoto;
+use Getopt::Long qw(GetOptions);
+
 
 my $max_width=800;
 
@@ -12,7 +14,11 @@ sub usage{
 print qq*
 $0 - create template for a photoalbum
 
-Usage: $0 <photo dir>
+Usage: $0 <options> <photo dir>
+
+Options:
+    -h,--help           -- display help screen
+    -T,--time_sort      -- sort images by time, not by name
 
 Report bugs to <slazav\@altlinux.org>
 *;
@@ -21,7 +27,14 @@ exit(1);
 
 ######################################################################
 
-usage() if @ARGV!=1;
+### get options.
+my %opts;
+GetOptions(
+  "h|help"      => \$opts{help},
+  "D|time_sort" => \$opts{time_sort},
+) or usage();
+
+usage() if $opts{help} || @ARGV<1;
 
 my $dir=$ARGV[0];
 my $file=$dir. '.txt';
@@ -44,12 +57,7 @@ foreach (@files) {
   my ($w, $h) = addphoto::image_size($tfile);
 
   # date from exif
-  my $date='';
-  if ($e=~/^.jp/){
-    $date=`exiv2 -Pkv $file 2>/dev/null | grep '^Exif.Photo.DateTimeOriginal'`;
-    $date =~ s|Exif.Photo.DateTimeOriginal\s*([\d:]+).*|$1|;
-    $date =~ tr|:|/|;
-  }
+  my $date = addphoto::get_exif($file)->{dat} || '';
 
   # ralative path
   my $p = $file; $p=~s|^$dir/||; # relative dir
@@ -63,7 +71,10 @@ print OUT "<html><body>\n";
 
 my $ww=0;  # current width
 my $od=''; # current date
-foreach (sort keys %files) {
+
+my @list = $opts{time_sort}? (sort {$files{$a}->{d} cmp $files{$b}->{d}} keys %files) :
+                             (sort keys %files);
+foreach (@list) {
   my $d = $files{$_}->{d};
   my $w = $files{$_}->{w};
   my $p = $files{$_}->{p};
