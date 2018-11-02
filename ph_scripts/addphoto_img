@@ -24,6 +24,7 @@ Options:
     -n,--next <url>     -- url for "next" reference
     -m,--mstyle <style> -- style of marks
     -l,--lang           -- languages support
+    --no-htm            -- do not generete html-file, remove existing one
 
 Input files:
   name.{jpg,png,tiff,gif}  -- sourse image
@@ -68,6 +69,7 @@ GetOptions(
   "n|next=s"   => \$opts{nurl},
   "u|up=s"     => \$opts{uurl},
   "l|lang"     => \$opts{lang},
+  "no-html"    => \$opts{nohtml},
 ) or usage();
 
 $opts{mref} = 'nakarte' unless $opts{mref}; # default
@@ -79,14 +81,14 @@ my @other = @ARGV;
 die "error: can't find file: $infile\n" unless -f $infile;
 foreach (@other) {die "error: can't find file: $_\n" unless -f $_;}
 
-# define some options
+# define some undefined options
 $opts{$_} = $opts{$_} || ''
   foreach ('title', 'purl', 'nurl', 'uurl', 'mstyle');
 
 my ($dir, $base, $ext) = addphoto::path_split($infile);
 my ($w, $h) = addphoto::image_size($infile);
 
-sub mark_create; # see below
+sub mark_create; # create marks from a fig-file (see below)
 
 ## update marks if fig-file exists and newer then mark file
 my $fig = "$dir$base.fig";
@@ -124,14 +126,19 @@ addphoto::thmark_add($th)
 ## Create html if needed.
 ## We use "key" to check that html-file is up-to-date.
 my $htm = "$dir$base.htm";
-my $key = Digest::MD5::md5_hex(join("\n",(
-  $opts{title}, $opts{purl}, $opts{uurl}, $opts{nurl},
-  ($mrk ne '' ? $opts{mstyle}:''),
-  $opts{mref},
-  $base.$ext, $w, $h, @other)));
-my $oldkey = addphoto::key_read($htm);
+unlink($htm) if $opts{nohtml};
 
-if ($key ne $oldkey){
+my ($key, $oldkey);
+if (!$opts{nohtml}){
+  $key = Digest::MD5::md5_hex(join("\n",(
+    $opts{title}, $opts{purl}, $opts{uurl}, $opts{nurl},
+    ($mrk ne '' ? $opts{mstyle}:''),
+    $opts{mref},
+    $base.$ext, $w, $h, @other)));
+  $oldkey = addphoto::key_read($htm);
+}
+
+if (!$opts{nohtml} && $key ne $oldkey){
   print STDERR "  creating html file: $htm\n" unless $opts{quiet};
 
   my $atitle=addphoto::rem_html($opts{title});
@@ -239,6 +246,8 @@ if ($key ne $oldkey){
       <img id="marks" src="$mrkref">
     </div>*;
   }
+
+  # multiple images:
   if ($#other>-1){
     my $nn=$#other+2;
     $scr .= qq*    <script type="text/JavaScript">
