@@ -126,7 +126,9 @@ addphoto::thmark_add($th)
 my $htm = "$dir$base.htm";
 my $key = Digest::MD5::md5_hex(join("\n",(
   $opts{title}, $opts{purl}, $opts{uurl}, $opts{nurl},
-  $mrk ne '', $base.$ext, $w, $h, @other)));
+  ($mrk ne '' ? $opts{mstyle}:''),
+  $opts{mref},
+  $base.$ext, $w, $h, @other)));
 my $oldkey = addphoto::key_read($htm);
 
 if ($key ne $oldkey){
