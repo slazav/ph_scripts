@@ -279,12 +279,17 @@ sub get_exif{
 
 ## print latlon coords with or without referense to google
 sub html_crd($$$){
-  my ($lat, $lon, $google) = @_[0..2];
-  return $google ?
-    sprintf('<a href="http://maps.google.com?t=h&' .
-            'q=%.7f+%.7f&ll=%.7f,%.7f&z=13">%.7f %.7f</a><br/>',
-            $lat, $lon, $lat, $lon, $lat, $lon) :
-    sprintf('%.7f %.7f', $lat, $lon);
+  my ($lat, $lon, $style) = @_[0..2];
+  if ($style eq 'gmap'){
+    return sprintf('<a href="http://maps.google.com?t=h&' .
+                   'q=%.7f+%.7f&ll=%.7f,%.7f&z=13">%.7f %.7f</a><br/>',
+                    $lat, $lon, $lat, $lon, $lat, $lon);
+  }
+  if ($style eq 'nakarte'){
+    return sprintf('<a href="https://nakarte.me/#m=%d/%.7f/%.7f&l=O">%.7f %.7f</a><br/>',
+                    13, $lat, $lon, $lat, $lon);
+  }
+  return sprintf('%.7f %.7f', $lat, $lon);
 }
 
 ## print exif data in HTML for a given filename
@@ -305,7 +310,7 @@ sub html_exif($$){
   }
   $ret .= $fw{dat_fmt} . $exif->{dat} if exists $exif->{dat};
   $ret .= $fw{alt_fmt} . $exif->{alt} if exists $exif->{alt};
-  $ret .= $fw{crd_fmt} . html_crd($exif->{lat}, $exif->{lon}, $opts->{gmap})
+  $ret .= $fw{crd_fmt} . html_crd($exif->{lat}, $exif->{lon}, $opts->{mref})
                    if exists $exif->{lat} &&  exists $exif->{lon};
   return $ret;
 }

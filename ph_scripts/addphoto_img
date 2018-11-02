@@ -16,7 +16,8 @@ Usage: $0 <options> <file>
 Options:
     -h,--help           -- display help screen
     -q,--quiet          -- be quiet
-    -g,--gmap           -- href\'s to maps.google.com
+    -r,--mref <mapref>  -- links to maps.google.com or nakarte.me
+    -g,--gmap           -- same as -M gmap, used for comaptibility with old versions
     -t,--title <title>  -- set image title
     -p,--prev <url>     -- url for "previous" reference
     -u,--up <url>       -- url for "up" reference
@@ -39,6 +40,11 @@ Mark styles:
   aa_gif_halo
   aa_gif_dark_halo
 
+Mapref styles:
+  none
+  nakarte (default)
+  gmap
+
 Making a page with many images: $0 <options> <file1> <file2> ...
 
 
@@ -51,11 +57,11 @@ exit(1);
 
 ### get options.
 my %opts;
-$opts{gmap}=1;
 GetOptions(
   "h|help"     => \$opts{help},
   "q|quiet"    => \$opts{quiet},
   "g|gmap"     => \$opts{gmap},
+  "r|mref=s"   => \$opts{mref},
   "m|mstyle=s" => \$opts{mstyle},
   "t|title=s"  => \$opts{title},
   "p|prev=s"   => \$opts{purl},
@@ -63,6 +69,9 @@ GetOptions(
   "u|up=s"     => \$opts{uurl},
   "l|lang"     => \$opts{lang},
 ) or usage();
+
+$opts{mref} = 'nakarte' unless $opts{mref}; # default
+$opts{mref} = 'gmap' if $opts{gmap};        # old-style -g option
 
 usage() if $opts{help} || @ARGV<1;
 my $infile = shift;
