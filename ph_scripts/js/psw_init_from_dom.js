@@ -1,15 +1,24 @@
 /*
   initPhotoSwipeFromDOM function, see
   http://photoswipe.com/documentation/getting-started.html
+  This version is derived from the example on the http://photoswipe.com main page.
   Takes all images in the page and makes a PhotoSwape gallery.
-  images should be wraaped in <a> tag with class=pswp_image and other atrtributes:
+
+  Images should be arranged like this:
+
+  <div class=pswp_image [othe attributes, see below]>
+    <a href=""> -- optional link which works w/o javascript
+      <img>     -- a thumbnail image
+    </a>
+    <div>Some HTML</div> -- caption
+  </div>
+
+  Attibutes of the 'pswp_image' div:
+   data          -- url  of the image
    data-size     -- size of the image
    data-med      -- url  of the medium-size image (if any)
    data-med-size -- size of the medium-size image (if any)
    ==data-author
-
-  This version is taken from the example on the http://photoswipe.com main page.
-
 
 */
 
@@ -29,7 +38,7 @@ var PhotoSwipeInitFromDOM = function() {
 
 
       var clickedListItem = closest(eTarget,
-        function(el) { return el.tagName === 'A';});
+        function(el) { return el.tagName === 'DIV';});
       if(!clickedListItem) { return; }
 
       var index = clickedListItem.getAttribute('index');
@@ -45,22 +54,30 @@ var PhotoSwipeInitFromDOM = function() {
 
     el.onclick = onImageClick;
     el.setAttribute('index', i);
+
+    // thumbnail image
+    var th = el.getElementsByTagName('img')[0];
+
     size = el.getAttribute('data-size').split('x');
     // create slide object
     item = {
       el:  el,   // save link to element for getThumbBoundsFn
-      src: el.getAttribute('href'),
+      th:  th,   // save link to image element
+      src: el.getAttribute('data'),
+      msrc: th.getAttribute('src'), // thumbnail url
       w: parseInt(size[0], 10),
       h: parseInt(size[1], 10),
       author: el.getAttribute('data-author')
     };
 
-//    if(childElements.length > 0) {
-//        item.msrc = childElements[0].getAttribute('src'); // thumbnail url
-//        if(childElements.length > 1) {
-//            item.title = childElements[1].innerHTML; // caption (contents of figure)
-//        }
-//    }
+
+    // caption
+    var ccd = el.getElementsByTagName('div');
+    for (i=0; i<ccd.length; i++){
+      if (ccd[i].innerHTML) {
+        item.title = ccd[i].innerHTML;
+      }
+    }
 
     var mediumSrc = el.getAttribute('data-med');
     if(mediumSrc) {
@@ -113,10 +130,8 @@ var PhotoSwipeInitFromDOM = function() {
 
         getThumbBoundsFn: function(index) {
             // See Options->getThumbBoundsFn section of docs for more info
-            var thumbnail = Gallery[index].el.children[0],
-                pageYScroll = window.pageYOffset || document.documentElement.scrollTop,
-                rect = thumbnail.getBoundingClientRect();
-
+            var rect = Gallery[index].th.getBoundingClientRect();
+            var pageYScroll = window.pageYOffset || document.documentElement.scrollTop;
             return {x:rect.left, y:rect.top + pageYScroll, w:rect.width};
         },
 
