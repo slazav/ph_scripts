@@ -177,10 +177,8 @@ foreach(<IN>){
     }
     print "<img src='$tfile' alt='$atitle'\n";
     print "  width=$w height=$h></a><br>\n";
-    print "<div><font size=\"-1\"><i>$title</i></font></div>\n";
-    if ($opts{pswp}){
-      print "</div>\n";
-    }
+    print "<div class='caption'>$title</div>\n";
+    if ($opts{pswp}){ print "</div>\n"; }
     print "</td>\n";
   }
   else{

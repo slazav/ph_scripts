@@ -1,0 +1,10 @@
+/* only in pswp mode 
+.pswp_image {
+}
+*/
+
+/* image captions */
+div.caption {
+ font-size: 90%;
+ font-style: italic;
+}
