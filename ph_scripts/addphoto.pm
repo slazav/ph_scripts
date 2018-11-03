@@ -78,6 +78,7 @@ our $def_mstyle = 'aa_gif';
 our $def_quality = '90';
 our $def_scale = '800:600:10000';
 our $def_thscale = '260:160:800';
+our $def_mescale = '800:600:1000';
 
 #### Regular expressions for addphoto commands
 our $ph_re='^\\\photo([lr]?)\s+(\S+)\s*(.*)';
@@ -169,6 +170,7 @@ sub image_scfactor($$$$$){
 
 ## resize image
 ## options: scale(s1:s2:s3),quiet,dryrun
+## return 0 if no scaling is done/needed, 1 otherwise
 sub image_resize{
   my ($in, $out, %o) = @_;
   my ($x, $y) = image_size($in);
@@ -184,7 +186,7 @@ sub image_resize{
     printf STDERR "%-20s %4d x %4d -> no changes\n", $in, $x, $y
       unless $o{quiet};
     `cp -f "$in" "$out" 1>&2` if $out ne $in && !$o{dryrun};
-    return;
+    return 0;
   }
 
   my ($xn, $yn) = (int($x/$k), int($y/$k));
@@ -199,6 +201,7 @@ sub image_resize{
       `convert -geometry ${xn}x${yn} -quality "$q" "$in" "$in" ||: 1>&2`;
     }
   }
+  return 1;
 }
 
 
@@ -314,7 +317,6 @@ sub html_exif($$){
                    if exists $exif->{lat} &&  exists $exif->{lon};
   return $ret;
 }
-
 
 #### THUMBNAILS, THMARKS and KEYS
 

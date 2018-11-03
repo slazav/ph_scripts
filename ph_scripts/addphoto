@@ -122,7 +122,7 @@ for (my $i=0; $i<@ph; $i++){
     ($opts{gmap}  ? ' -g':'') .
     ($opts{quiet} ? ' -q':'') .
     ($opts{lang}  ? ' -l':'') .
-    ($opts{pswp}  ? ' --no-htm':'') .
+    ($opts{pswp}  ? ' --no-htm --med-img':'') .
     ($opts{style} ? " -m '$opts{style}'":'') .
     ($t ? " -t \"$t\"":'') .
     " -p '$prev' -n '$next' -u '$up'";
@@ -149,6 +149,7 @@ foreach(<IN>){
     my $ifile = "$base$img";
     my $hfile = "$base$id$ib.htm";
     my $tfile = "$base${id}_$ib$ie";
+    my $mfile = "$base${id}_m_$ib$ie";
 
     # title without html for alt atribute
     my $atitle = addphoto::rem_html($title);
@@ -168,7 +169,18 @@ foreach(<IN>){
     if ($opts{pswp}){
       # size of the big image
       my ($wb, $hb) = addphoto::image_size("$dir$ifile");
-      print "<div class='pswp_image' data='$base$id/$img' data-size=${wb}x${hb}\n";
+      print "<div class='pswp_image' data='$ifile' data-size='${wb}x${hb}'\n";
+
+      if ( -f "$dir$mfile") {
+        my ($wm, $hm) = addphoto::image_size("$dir$mfile");
+        print "  data-med='$mfile' data-med-size='${wm}x${hm}'\n";
+      }
+
+      my $exif = addphoto::get_exif("$dir$ifile");
+      print "  dat='$exif->{dat}'" if $exif->{dat};
+      print "  alt='$exif->{alt}'" if $exif->{alt};
+      print "  lat='$exif->{lat}'" if $exif->{lat};
+      print "  lon='$exif->{lon}'" if $exif->{lon};
       print ">\n";
       print "<a href='$base$id/$img'>\n";
     }

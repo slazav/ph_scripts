@@ -166,52 +166,30 @@ var PhotoSwipeInitFromDOM = function() {
     var pswp = new PhotoSwipe( pswpElement, PhotoSwipeUI_Default, Gallery, options);
 
     // see: http://photoswipe.com/documentation/responsive-images.html
-    var realViewportWidth,
+    var realViewportW, realViewportH,
         useLargeImages = false,
         firstResize = true,
         imageSrcWillChange;
 
     pswp.listen('beforeResize', function() {
-
       var dpiRatio = window.devicePixelRatio ? window.devicePixelRatio : 1;
       dpiRatio = Math.min(dpiRatio, 2.5);
-        realViewportWidth = pswp.viewportSize.x * dpiRatio;
-
-
-        if(realViewportWidth >= 1200 || (!pswp.likelyTouchDevice && realViewportWidth > 800) || screen.width > 1200 ) {
-          if(!useLargeImages) {
-            useLargeImages = true;
-              imageSrcWillChange = true;
-          }
-
-        } else {
-          if(useLargeImages) {
-            useLargeImages = false;
-              imageSrcWillChange = true;
-          }
-        }
-
-        if(imageSrcWillChange && !firstResize) {
-            pswp.invalidateCurrItems();
-        }
-
-        if(firstResize) {
-            firstResize = false;
-        }
-
-        imageSrcWillChange = false;
-
+      realViewportW = pswp.viewportSize.x * dpiRatio;
+      realViewportH = pswp.viewportSize.y * dpiRatio;
+      if (!realViewportW) {realViewportW = screen.width;}
+      if (!realViewportH) {realViewportH = screen.heigh;}
     });
 
     pswp.listen('gettingData', function(index, item) {
-        if( useLargeImages ) {
-            item.src = item.o.src;
-            item.w = item.o.w;
-            item.h = item.o.h;
+        if (item.m && (realViewportW < item.m.w
+                    || realViewportH < item.m.h)) {
+          item.src = item.m.src;
+          item.w = item.m.w;
+          item.h = item.m.h;
         } else {
-            item.src = item.m.src;
-            item.w = item.m.w;
-            item.h = item.m.h;
+          item.src = item.o.src;
+          item.w = item.o.w;
+          item.h = item.o.h;
         }
     });
 

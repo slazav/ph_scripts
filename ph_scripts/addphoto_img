@@ -25,6 +25,7 @@ Options:
     -m,--mstyle <style> -- style of marks
     -l,--lang           -- languages support
     --no-htm            -- do not generete html-file, remove existing one
+    --med-img           -- create medium-size image
 
 Input files:
   name.{jpg,png,tiff,gif}  -- sourse image
@@ -70,6 +71,7 @@ GetOptions(
   "u|up=s"     => \$opts{uurl},
   "l|lang"     => \$opts{lang},
   "no-html"    => \$opts{nohtml},
+  "med-img"    => \$opts{medimg},
 ) or usage();
 
 $opts{mref} = 'nakarte' unless $opts{mref}; # default
@@ -117,9 +119,23 @@ if (addphoto::isolder($th, $infile) ||
 ## add thumbnail mark if needed
 addphoto::thmark_add($th)
   if $mrk && !addphoto::thmark_check($th);
-
 addphoto::thmark_add($th)
   if $#other > -0;
+
+## update medium-size image
+## - if it does not exist or it is older then the image
+my $me = "${dir}_m_$base$ext";
+if ($opts{medimg} && addphoto::isolder($me, $infile)){
+  # check if scaling is needed:
+  my $f = addphoto::image_resize($infile, $me,
+          (scale=>$addphoto::def_mescale, quiet=>1, dryrun=>1));
+
+  if ($f) {
+    print STDERR "  updating medium-size image: " if !$opts{quiet};
+    addphoto::image_resize($infile, $me,
+      (scale=>$addphoto::def_mescale, quiet=>$opts{quiet}));
+  }
+}
 
 
 ## Create html if needed.
