@@ -359,4 +359,83 @@ sub fig_im_size($$){
   return (0,0);
 }
 
+##### Create transparent file with marks:
+sub mark_create{
+  my ($infile, $fig, $mrk, $mstyle) = @_;
+  $mstyle = $addphoto::def_mstyle unless $mstyle;
+
+  my ($fw, $fh)=addphoto::fig_im_size($fig, $infile);
+  die "Bad fig file: $fig" unless $fw && $fh;
+  my $sc = ($h/$fh + $w/$fw) / 2;
+  $sc*=2 if $mstyle ne 'simple_gif';
+
+  ## create gif file
+  qx* LANG="$addphoto::fig_lang"\\
+   fig2dev -m$sc -j -Lgif -D +0:200 -t'#FFFFFF' "$fig" "$mrk" ||\\
+     rm -f -- "$mrk"*;
+
+  ## build script for convert program
+  # IE can only show transparent gifs, not png.
+  # We can't use semi-transparent png here :(
+  my $cmd;
+  if ($mstyle eq 'simple_gif'){
+  }
+  elsif ($mstyle eq 'aa_gif'){
+    $cmd=qq*
+        ( "$infile"
+          ( "$mrk" -alpha extract -blur 0.8 -threshold 15 -resize 50% )
+          +matte -compose copy-opacity -composite -blur 2 )
+        ( "$mrk" -resize 50% )
+        -compose over -composite
+        "$mrk"*;
+  }
+  elsif ($mstyle eq 'aa_gif_halo'){
+    $cmd = qq*
+        ( "$infile"
+          ( "$mrk" -alpha extract -blur 1.2 -threshold 15 -resize 50% )
+          +matte -compose copy-opacity -composite )
+        ( "$mrk"
+          ( -clone 0 +matte +level-colors white.
+            ( -clone 0 -alpha extract -blur 4x3 -level 0%,50% )
+            +matte -compose copy-opacity -composite )
+          -compose dst-over -composite
+          -resize 50% )
+        -compose over -composite
+        "$mrk"*;
+  }
+  elsif ($mstyle eq 'aa_gif_dark_halo'){
+    $cmd = qq*
+        ( "$infile"
+          ( "$mrk" -alpha extract -blur 1.2 -threshold 15 -resize 50% )
+          +matte -compose copy-opacity -composite )
+        ( "$mrk" +level 0,30%
+          ( -clone 0 +matte +level-colors white
+            ( -clone 0 -alpha extract -blur 4x3 -level 0%,50% )
+            +matte -compose copy-opacity -composite )
+          -compose dst-over -composite
+          -resize 50% )
+        -compose over -composite
+        "$mrk"*;
+   }
+   else{
+     die "Unknown mark style: $mstyle\n";
+   }
+   if ($cmd){
+     $cmd =~ s/([\(\)\n])/\\$1/g;
+     qx"convert $cmd";
+   }
+
+
+#  png_dark_halo
+#    $cmd=qq*
+#        "$mrk" +level 0,30%
+#        ( -clone 0 +matte +level-colors white
+#          ( -clone 0 -alpha extract -blur 4x3 -level 0%,50% )
+#          +matte -compose copy-opacity -composite )
+#        -compose dst-over -composite
+#        -resize 50%
+#        "$mrk"*;
+}
+
+
 1;
