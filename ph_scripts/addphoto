@@ -20,6 +20,7 @@ Options:
     -g,--gmap    -- add google maps ref (see addphoto_img)
     -l,--lang    -- add language support
     -f,--flat    -- flat album - pictures are in the same folder as infile
+    --pswp       -- PhotoSwipe album (no html pages, all information in img tags)
 
 Input file syntax:
 Commands are started at the beginning of line with '\\' symbol.
@@ -47,6 +48,7 @@ GetOptions(
   "g|gmap"     => \$opts{gmap},
   "l|lang"     => \$opts{lang},
   "f|flat"     => \$opts{flat},
+  "pswp"       => \$opts{pswp},
 ) or usage();
 
 usage() if $opts{help} || @ARGV!=1;
@@ -120,6 +122,7 @@ for (my $i=0; $i<@ph; $i++){
     ($opts{gmap}  ? ' -g':'') .
     ($opts{quiet} ? ' -q':'') .
     ($opts{lang}  ? ' -l':'') .
+    ($opts{pswp}  ? ' --no-htm':'') .
     ($opts{style} ? " -m '$opts{style}'":'') .
     ($t ? " -t \"$t\"":'') .
     " -p '$prev' -n '$next' -u '$up'";
@@ -143,6 +146,7 @@ foreach(<IN>){
 
     # paths of html page and thumbnail image from album index
     my ($id, $ib, $ie) = addphoto::path_split($img);
+    my $ifile = "$base$img";
     my $hfile = "$base$id$ib.htm";
     my $tfile = "$base${id}_$ib$ie";
 
@@ -152,13 +156,32 @@ foreach(<IN>){
     # size of the thumbnail image
     my ($w, $h) = addphoto::image_size("$dir$tfile");
 
+    my $pswp_data='';
+    if ($opts{pswp}){
+      $pswp_data .= " class='pswp_image'";
+      $pswp_data .= " data-size=${w}x${h}";
+    }
+
     print "<p><table border=0 align=$al cellpadding=10><tr>\n"
       if !$op_tab; $op_tab=1;
     print "<td width=$w valign=top><a name='ph$np'></a>\n";
-    print "<a href='$hfile'>\n";
+    if ($opts{pswp}){
+      # size of the big image
+      my ($wb, $hb) = addphoto::image_size("$dir$ifile");
+      print "<div class='pswp_image' data='$base$id/$img' data-size=${wb}x${hb}\n";
+      print ">\n";
+      print "<a href='$base$id/$img'>\n";
+    }
+    else {
+      print "<a href='$hfile'>\n";
+    }
     print "<img src='$tfile' alt='$atitle'\n";
     print "  width=$w height=$h></a><br>\n";
-    print "<font size=\"-1\"><i>$title</i></font></td>\n";
+    print "<div><font size=\"-1\"><i>$title</i></font></div>\n";
+    if ($opts{pswp}){
+      print "</div>\n";
+    }
+    print "</td>\n";
   }
   else{
     print "</tr></table></p>\n" if $op_tab; $op_tab=0; # close table
