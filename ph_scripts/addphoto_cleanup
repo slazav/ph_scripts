@@ -40,21 +40,22 @@ $opts{infile} = shift;
 die "can't find file: $opts{infile}\n"
   unless -f $opts{infile};
 
-# regular expressions for addphoto commands
-my $ph_re='^\\\photo([lr]?)\s+(\S+)\s*(.*)';
-
 my ($dir, $base, $ext) = addphoto::path_split($opts{infile});
 
 ### collect files to keep from album index
 my %keep;
 open IN, $opts{infile} or
   die "can't open $opts{infile}: $!\n";
+
 foreach(<IN>){
-  if (/$ph_re/){     # images
-    $keep{"$dir$base/$2"} = 1;
+  if (/$addphoto::ph_re/){     # images
+    my @f = split(',', $2);
+    foreach my $f (@f){
+      $keep{"$dir$base/$f"} = 1;
+    }
 
     ## TODO: ask addphoto_www for files related to the image
-    my ($d, $b, $e) = addphoto::path_split($2);
+    my ($d, $b, $e) = addphoto::path_split($f[0]);
     # add html and thumbnail for this image
     $keep{"$dir$base/$d$b.htm"} = 1;
     $keep{"$dir$base/${d}_$b$e"} = 1;
