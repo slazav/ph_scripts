@@ -166,6 +166,8 @@ foreach(<IN>){
     print "<p><table border=0 align=$al cellpadding=10><tr>\n"
       if !$op_tab; $op_tab=1;
     print "<td width=$w valign=top><a name='ph$np'></a>\n";
+
+    # collect all information for pswp in <div>
     if ($opts{pswp}){
       # size of the big image
       my ($wb, $hb) = addphoto::image_size("$dir$ifile");
@@ -174,6 +176,11 @@ foreach(<IN>){
       if ( -f "$dir$mfile") {
         my ($wm, $hm) = addphoto::image_size("$dir$mfile");
         print "  data-med='$mfile' data-med-size='${wm}x${hm}'\n";
+      }
+
+      my $markfile = "$base$id${ib}_m.gif";
+      if ( -f "$markfile") {
+        print "  mark-src='$markfile'\n";
       }
 
       my $exif = addphoto::get_exif("$dir$ifile");

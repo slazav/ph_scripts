@@ -67,7 +67,12 @@ var PhotoSwipeInitFromDOM = function() {
       msrc: th.getAttribute('src'), // thumbnail url
       w: parseInt(size[0], 10),
       h: parseInt(size[1], 10),
-      author: el.getAttribute('data-author')
+      author:  el.getAttribute('data-author'),
+      lat:     el.getAttribute('lat'),
+      lon:     el.getAttribute('lon'),
+      alt:     el.getAttribute('alt'),
+      dat:     el.getAttribute('dat'),
+      mrk:     el.getAttribute('mrk-src'),
     };
 
 
@@ -136,12 +141,23 @@ var PhotoSwipeInitFromDOM = function() {
         },
 
         addCaptionHTMLFn: function(item, captionEl, isFake) {
-      if(!item.title) {
-        captionEl.children[0].innerText = '';
-        return false;
-      }
-      captionEl.children[0].innerHTML = item.title +  '<br/><small>Photo: ' + item.author + '</small>';
-      return true;
+//          var text = '<table border=0 bgcolor=white width=100%><tr><td>';
+//          if(item.title) { text += item.title; }
+//          text += '</td><td>';
+//          if(item.dat) { text += '<br>Date and time: ' + item.dat; }
+//          if(item.alt) { text += '<br>Altitude: ' + item.alt; }
+//          if(item.lat && item.lat) { text += '<br>Coordinates: ' + item.lat; }
+//          text += '</td></tr></table>';
+//          captionEl.children[0].innerHTML = text;
+
+          var text = '';
+          if(item.title) { text += item.title + '<br>'; }
+          if(item.dat) { text += 'date and time: ' + item.dat; }
+          if(item.lat && item.lon) { text += '<br>coordinates: ' + item.lat + ',' + item.lon; }
+          if(item.alt) { text += ' altitude: ' + item.alt; }
+          captionEl.children[0].innerHTML = text;
+
+          return true;
         },
     };
 
@@ -234,8 +250,8 @@ var PhotoSwipeInitFromDOM = function() {
   '      </div>',
   '      <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)"></button>',
   '      <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button>',
-  '      <div class="pswp__caption">',
-  '        <div class="pswp__caption__center"></div>',
+  '      <div class="pswp__caption" align=left>',
+  '        <div class="pswp__caption__center" width=100% align=left></div>',
   '      </div>',
   '    </div>',
   '  </div>'].join('\n');
