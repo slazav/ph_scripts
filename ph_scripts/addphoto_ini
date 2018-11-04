@@ -56,13 +56,16 @@ foreach (@files) {
     if addphoto::isolder($tfile, $file);
   my ($w, $h) = addphoto::image_size($tfile);
 
-  # date from exif
-  my $date = addphoto::get_exif($file)->{dat} || '';
+  # time from exif
+  my $time = addphoto::get_exif($file)->{dat} || '';
+
+  # day only
+  my $date = (split(/\s+/, $time))[0];
 
   # ralative path
   my $p = $file; $p=~s|^$dir/||; # relative dir
 
-  $files{$_} = {w=>$w, d=>$date, p=>$p};
+  $files{$_} = {w=>$w, d=>$date, t=>$time, p=>$p};
 }
 
 rename $file, "$file.bak" if -f $file;
@@ -72,7 +75,7 @@ print OUT "<html><body>\n";
 my $ww=0;  # current width
 my $od=''; # current date
 
-my @list = $opts{time_sort}? (sort {$files{$a}->{d} cmp $files{$b}->{d}} keys %files) :
+my @list = $opts{time_sort}? (sort {$files{$a}->{t} cmp $files{$b}->{t}} keys %files) :
                              (sort keys %files);
 foreach (@list) {
   my $d = $files{$_}->{d};
