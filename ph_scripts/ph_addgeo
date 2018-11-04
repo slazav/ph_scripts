@@ -157,6 +157,7 @@ foreach (sort keys %file_data){
     my $lon=$txt_data{$name}->{lon};
     my $alt=$txt_data{$name}->{alt};
     printf " %12.8f %13.8f %6.1f", $lat, $lon, $alt if $verbose;
+    printf EFILE "# $name %12.8f %13.8f %6.1f\n", $lat, $lon, $alt if $e_file;
 
     my $lat_r = $lat<0? 'S':'N'; $lat=abs($lat);
     my $lon_r = $lon<0? 'W':'E'; $lon=abs($lon);
@@ -180,9 +181,7 @@ foreach (sort keys %file_data){
   }
   else {
     $txt_data{$name} = 0;
-    if ($e_file){
-      print EFILE "$name\n";
-    }
+    print EFILE "$name\n" if $e_file;
   }
   `exiv2 $args $name`;
   print "\n" if $verbose;
@@ -190,9 +189,7 @@ foreach (sort keys %file_data){
 printf STDERR "Done, set geo-reference for $n/%i files.\n",
   scalar(keys %file_data) if $verbose;
 
-if ($e_file){
-  close EFILE  or die "can't close: $e_file: $!\n";
-}
+close EFILE  or die "can't close: $e_file: $!\n" if $e_file;
 
 
 print STDERR "Saving WPT-file...\n" if $verbose;
