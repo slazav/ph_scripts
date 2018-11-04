@@ -64,10 +64,11 @@ if (open T, $txt_file){
   print STDERR "Getting geodata from txt datafile ($txt_file)...\n" if $verbose;
   foreach(<T>){
     next if /^\s*#/;
+    next if /^\s*$/;
     my @pt_data = split /\s+/;
-    if (scalar(@pt_data) >= 4){
+    if (scalar(@pt_data) >= 3){
       $txt_data{$pt_data[0]} = {
-        lat => $pt_data[1], lon => $pt_data[2], alt => $pt_data[3]
+        lat => $pt_data[1], lon => $pt_data[2], alt => ($pt_data[3] || 0)
       };
     }
     else {
