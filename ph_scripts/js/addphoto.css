@@ -8,3 +8,22 @@ div.caption {
  font-size: 90%;
  font-style: italic;
 }
+
+/* additional buttons*/
+.btn_plus, .btn_minus, .btn_download, .btn_time, .btn_map {
+  background: url(btns.png) 0 0 no-repeat;
+  background-size: 220px 44px;
+  width: 44px;
+  height: 44px; }
+
+.btn_minus {
+  background-position: -44px 0; }
+
+.btn_time {
+  background-position: -88px 0; }
+
+.btn_map {
+  background-position: -132px 0; }
+
+.btn_download {
+  background-position: -176px 0; }

@@ -143,23 +143,7 @@ var PhotoSwipeInitFromDOM = function() {
         },
 
         addCaptionHTMLFn: function(item, captionEl, isFake) {
-//          var text = '<table border=0 bgcolor=white width=100%><tr><td>';
-//          if(item.title) { text += item.title; }
-//          text += '</td><td>';
-//          if(item.dat) { text += '<br>Date and time: ' + item.dat; }
-//          if(item.alt) { text += '<br>Altitude: ' + item.alt; }
-//          if(item.lat && item.lat) { text += '<br>Coordinates: ' + item.lat; }
-//          text += '</td></tr></table>';
-//          captionEl.children[0].innerHTML = text;
-
-          var text = '';
-          if(item.title) { text += item.title + '<br>'; }
-          if(item.dat) { text += 'date and time: ' + item.dat; }
-          if(item.lat && item.lon) { text += '<br>coordinates: ' + item.lat + ',' + item.lon + '<br>'; }
-          if(item.alt) { text += ' altitude: ' + item.alt; }
-          text += ' <a href="' + item.o.src + '">[full size]</a>';
-          captionEl.children[0].innerHTML = text;
-
+          captionEl.children[0].innerHTML = item.title;
           return true;
         },
     };
@@ -200,23 +184,45 @@ var PhotoSwipeInitFromDOM = function() {
     });
 
     pswp.listen('gettingData', function(index, item) {
-        if (item.m && (realViewportW < item.m.w
-                    || realViewportH < item.m.h)) {
-          item.src = item.m.src;
-          item.w = item.m.w;
-          item.h = item.m.h;
-        } else {
-          item.src = item.o.src;
-          item.w = item.o.w;
-          item.h = item.o.h;
-        }
+      if (item.m && (realViewportW < item.m.w
+                 || realViewportH < item.m.h)) {
+        item.src = item.m.src;
+        item.w = item.m.w;
+        item.h = item.m.h;
+      } else {
+        item.src = item.o.src;
+        item.w = item.o.w;
+        item.h = item.o.h;
+      }
     });
 
-      pswp.init();
+    pswp.listen('afterChange', function(index) {
+      var it = pswp.currItem;
+      bp = document.getElementsByClassName("ref_download");
+      if (bp.length){
+        bp[0].setAttribute('href', it.o.src);
+      }
+      bp = document.getElementsByClassName("btn_time");
+      if (bp.length){
+        if (it.dat) {bp[0].setAttribute('title', it.dat);}
+        else {bp[0].style.display = 'none';}
+      }
+      bp = document.getElementsByClassName("btn_map");
+      if (bp.length){
+        if (it.lat && it.lon && it.alt){
+          bp[0].setAttribute('title', it.lat + "," + it.lon + ", " +it.alt);
+          var url = 'https://nakarte.me/#m=13/' + it.lat + '/' + it.lon + '&l=O';
+          bp[0].setAttribute('onclick', "window.open('" + url + "');");
+        }
+        else {bp[0].style.display = 'none';}
+      }
+    });
+
+
+    pswp.init();
   };
 
 /***********************************************************/
-
 
   //Add hidden html element for PhotoSwipe pages
   var html=[
@@ -231,7 +237,10 @@ var PhotoSwipeInitFromDOM = function() {
   '      <div class="pswp__top-bar">',
   '        <div class="pswp__counter"></div>',
   '        <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>',
-  '        <button class="pswp__button pswp__button--share" title="Share"></button>',
+  '        <a href="" download class="ref_download">',
+  '          <button class="pswp__button btn_download" title="Download"></button></a>',
+  '        <button class="pswp__button btn_time"     title="Time"></button>',
+  '        <button class="pswp__button btn_map"      title="Map"></button>',
   '        <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>',
   '        <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>',
   '        <div class="pswp__preloader">',
