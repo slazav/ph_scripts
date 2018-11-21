@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 use addphoto;
-use Getopt::Long qw(GetOptions);
+use Getopt::Long qw(GetOptions Configure);
 
 #################################################################
 sub usage(){
@@ -49,6 +49,7 @@ exit(1);
 ### get options 
 my %opts;
 $opts{th_size} = $addphoto::def_thscale;
+Configure("no_ignore_case");
 GetOptions(
   "h|help"      => \$opts{help},
   "q|quiet"     => \$opts{quiet},
@@ -197,11 +198,11 @@ foreach(<IN>){
 
       my $exif = addphoto::get_exif("$dir$ifile");
       print "  dat='$exif->{dat}'" if $exif->{dat};
-      print "  alt='$exif->{alt}'" if $exif->{alt};
-      print "  lat='$exif->{lat}'" if $exif->{lat};
-      print "  lon='$exif->{lon}'" if $exif->{lon};
+      printf "  alt='%.1f'", $exif->{alt} if $exif->{alt};
+      printf "  lat='%.6f'", $exif->{lat} if $exif->{lat};
+      printf "  lon='%.6f'", $exif->{lon} if $exif->{lon};
       print ">\n";
-      print "<a href='$base$id/$img'>\n";
+      print "<a href='$base$id$img'>\n";
     }
     else {
       print "<a href='$hfile'>\n";

@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 use addphoto;
-use Getopt::Long qw(GetOptions);
+use Getopt::Long qw(GetOptions Configure);
 use Digest::MD5;
 
 ##################################################
@@ -62,6 +62,7 @@ exit(1);
 ############################################################
 ### get options.
 my %opts;
+Configure("no_ignore_case");
 GetOptions(
   "h|help"     => \$opts{help},
   "q|quiet"    => \$opts{quiet},
@@ -136,6 +137,7 @@ if ($opts{th_size}) {
 my $me = "${dir}_m_$base$ext";
 if ($opts{md_size} && addphoto::isolder($me, $infile)){
   # check if scaling is needed:
+
   my $f = addphoto::image_resize($infile, $me,
           (scale=>$opts{md_size}, quiet=>1, dryrun=>1));
 

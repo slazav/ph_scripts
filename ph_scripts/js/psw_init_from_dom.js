@@ -63,10 +63,7 @@ var PhotoSwipeInitFromDOM = function() {
     item = {
       el:  el,   // save link to element for getThumbBoundsFn
       th:  th,   // save link to image element
-      src: el.getAttribute('data'),
-      msrc: th.getAttribute('src'), // thumbnail url
-      w: parseInt(size[0], 10),
-      h: parseInt(size[1], 10),
+      thsrc: th.getAttribute('src'), // thumbnail url
       author:  el.getAttribute('data-author'),
       lat:     el.getAttribute('lat'),
       lon:     el.getAttribute('lon'),
@@ -84,22 +81,27 @@ var PhotoSwipeInitFromDOM = function() {
       }
     }
 
+    // original image
+    var fullSrc = el.getAttribute('data');
+    if (fullSrc) {
+      size = el.getAttribute('data-size').split('x');
+      item.o = {
+        src: fullSrc,
+        w: parseInt(size[0], 10),
+        h: parseInt(size[1], 10)
+      };
+    }
+
+    // "medium-sized" image
     var mediumSrc = el.getAttribute('data-med');
     if(mediumSrc) {
       size = el.getAttribute('data-med-size').split('x');
-      // "medium-sized" image
       item.m = {
           src: mediumSrc,
           w: parseInt(size[0], 10),
           h: parseInt(size[1], 10)
       };
     }
-    // original image
-    item.o = {
-      src: item.src,
-      w: item.w,
-      h: item.h
-    };
     return item;
   };
 
@@ -153,8 +155,9 @@ var PhotoSwipeInitFromDOM = function() {
           var text = '';
           if(item.title) { text += item.title + '<br>'; }
           if(item.dat) { text += 'date and time: ' + item.dat; }
-          if(item.lat && item.lon) { text += '<br>coordinates: ' + item.lat + ',' + item.lon; }
+          if(item.lat && item.lon) { text += '<br>coordinates: ' + item.lat + ',' + item.lon + '<br>'; }
           if(item.alt) { text += ' altitude: ' + item.alt; }
+          text += ' <a href="' + item.o.src + '">[full size]</a>';
           captionEl.children[0].innerHTML = text;
 
           return true;
