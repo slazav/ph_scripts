@@ -25,7 +25,11 @@ Options:
     -m,--mstyle <style> -- style of marks
     -l,--lang           -- languages support
     --no-htm            -- do not generete html-file, remove existing one
-    --med-img           -- create medium-size image
+    -T,--th_size <size> -- create thumbnail images, name is _m_<name>,
+                           size specified as in ph_resize (W1:W2:W3)
+    -M,--md_size <size> -- create medium-size images with names _<nams>,
+                           size specified as in ph_resize (W1:W2:W3),
+                           use it in html.
 
 Input files:
   name.{jpg,png,tiff,gif}  -- sourse image
@@ -55,8 +59,7 @@ Report bugs to <slazav\@altlinux.org>
 exit(1);
 }
 
-##################################################
-
+############################################################
 ### get options.
 my %opts;
 GetOptions(
@@ -71,7 +74,8 @@ GetOptions(
   "u|up=s"     => \$opts{uurl},
   "l|lang"     => \$opts{lang},
   "no-html"    => \$opts{nohtml},
-  "med-img"    => \$opts{medimg},
+  "M|md_size=s"   => \$opts{md_size},
+  "T|th_size=s"   => \$opts{th_size},
 ) or usage();
 
 $opts{mref} = 'nakarte' unless $opts{mref}; # default
@@ -87,11 +91,12 @@ foreach (@other) {die "error: can't find file: $_\n" unless -f $_;}
 $opts{$_} = $opts{$_} || ''
   foreach ('title', 'purl', 'nurl', 'uurl', 'mstyle');
 
+############################################################
+# split image name into path/name/extension
 my ($dir, $base, $ext) = addphoto::path_split($infile);
-my ($w, $h) = addphoto::image_size($infile);
 
-
-## update marks if fig-file exists and newer then mark file
+############################################################
+## update marks if fig-file exists and newer then the mark file
 my $fig = "$dir$base.fig";
 my $mrk = -r $fig ? "$dir${base}_m.gif": '';
 if ($mrk && addphoto::isolder($mrk, $fig)){
@@ -106,46 +111,59 @@ if ( -f $oldmrk && $oldmrk ne $infile){
   unlink($oldmrk);
 }
 
+############################################################
 ## update thumbnail image:
 ## - if it does not exist or it is older then the image
 ## - if it is marked but no marks needed any more
-my $th = "${dir}_$base$ext";
-if (addphoto::isolder($th, $infile) ||
-    (addphoto::thmark_check($th) && !$mrk && $#other<0)){
-  print STDERR "  updating thumbnail: " if !$opts{quiet};
-  addphoto::image_resize($infile, $th,
-    (scale=>$addphoto::def_thscale, quiet=>$opts{quiet}));
+if ($opts{th_size}) {
+  my $th = "${dir}_$base$ext";
+  if (addphoto::isolder($th, $infile) ||
+      (addphoto::thmark_check($th) && !$mrk && $#other<0)){
+    print STDERR "  updating thumbnail: " if !$opts{quiet};
+    addphoto::image_resize($infile, $th,
+      (scale=>$opts{th_size}, quiet=>$opts{quiet}));
+  }
+  ## add thumbnail mark if needed
+  addphoto::thmark_add($th)
+    if $mrk && !addphoto::thmark_check($th);
+  addphoto::thmark_add($th)
+    if $#other > -0;
 }
-## add thumbnail mark if needed
-addphoto::thmark_add($th)
-  if $mrk && !addphoto::thmark_check($th);
-addphoto::thmark_add($th)
-  if $#other > -0;
 
-## update medium-size image
+############################################################
+## update medium-size image (only if scaling is needed)
 ## - if it does not exist or it is older then the image
 my $me = "${dir}_m_$base$ext";
-if ($opts{medimg} && addphoto::isolder($me, $infile)){
+if ($opts{md_size} && addphoto::isolder($me, $infile)){
   # check if scaling is needed:
   my $f = addphoto::image_resize($infile, $me,
-          (scale=>$addphoto::def_mescale, quiet=>1, dryrun=>1));
+          (scale=>$opts{md_size}, quiet=>1, dryrun=>1));
 
   if ($f) {
     print STDERR "  updating medium-size image: " if !$opts{quiet};
     addphoto::image_resize($infile, $me,
-      (scale=>$addphoto::def_mescale, quiet=>$opts{quiet}));
+      (scale=>$opts{md_size}, quiet=>$opts{quiet}));
   }
 }
+my $use_med = -f $me;
 
 
+############################################################
 ## Create html if needed.
 ## We use "key" to check that html-file is up-to-date.
 my $htm = "$dir$base.htm";
 unlink($htm) if $opts{nohtml};
 
+# image reference for html
+my $imgref = $use_med ? "_m_$base$ext":"$base$ext";
+
+# image size for html
+my ($w, $h) = addphoto::image_size($use_med ? $me : $infile);
+
 my ($key, $oldkey);
 if (!$opts{nohtml}){
   $key = Digest::MD5::md5_hex(join("\n",(
+    $imgref,
     $opts{title}, $opts{purl}, $opts{uurl}, $opts{nurl},
     ($mrk ne '' ? $opts{mstyle}:''),
     $opts{mref},
@@ -157,7 +175,6 @@ if (!$opts{nohtml} && $key ne $oldkey){
   print STDERR "  creating html file: $htm\n" unless $opts{quiet};
 
   my $atitle=addphoto::rem_html($opts{title});
-  my $imgref = "$base$ext";
   my $mrkref = "${base}_m.gif";
 
   # default values for html style, scripts, top and bottom text
@@ -299,6 +316,15 @@ if (!$opts{nohtml} && $key ne $oldkey){
     </div>*;
   $sty .= qq*
       .exif { font: bold 8pt sans-serif;}*;
+
+  # full size
+  if ($use_med) {
+    my $txt = $opts{lang}? $addphoto::msgl{fullsize}:$addphoto::msg{fullsize};
+    $btm .= qq*
+    <div class=fullsize><a href="$base$ext">[$txt]</a></div>*;
+    $sty .= qq*
+     .fullsize { font: bold 8pt sans-serif;}*;
+  }
 
   # wrap style settings
   if ($sty){

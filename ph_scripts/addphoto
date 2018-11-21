@@ -21,6 +21,12 @@ Options:
     -l,--lang    -- add language support
     -f,--flat    -- flat album - pictures are in the same folder as infile
     --pswp       -- PhotoSwipe album (no html pages, all information in img tags)
+    -T,--th_size <size> -- Create thumbnail images, name is _m_<name>,
+                           size specified as in ph_resize (W1:W2:W3),
+                           Default: "260:160:800".
+    -M,--md_size <size> -- Create medium-size images with names _<nams> if needed,
+                           size specified as in ph_resize (W1:W2:W3).
+                           Use it in html. Default: none.
 
 Input file syntax:
 Commands are started at the beginning of line with '\\' symbol.
@@ -38,17 +44,21 @@ Report bugs to <slazav\@altlinux.org>
 exit(1);
 }
 
+
 #################################################################
 ### get options 
 my %opts;
+$opts{th_size} = $addphoto::def_thscale;
 GetOptions(
-  "h|help"     => \$opts{help},
-  "q|quiet"    => \$opts{quiet},
-  "m|mstyle=s" => \$opts{mstyle},
-  "g|gmap"     => \$opts{gmap},
-  "l|lang"     => \$opts{lang},
-  "f|flat"     => \$opts{flat},
-  "pswp"       => \$opts{pswp},
+  "h|help"      => \$opts{help},
+  "q|quiet"     => \$opts{quiet},
+  "m|mstyle=s"  => \$opts{mstyle},
+  "g|gmap"      => \$opts{gmap},
+  "l|lang"      => \$opts{lang},
+  "f|flat"      => \$opts{flat},
+  "pswp"        => \$opts{pswp},
+  "T|th_size=s" => \$opts{th_size},
+  "M|md_size=s" => \$opts{md_size},
 ) or usage();
 
 usage() if $opts{help} || @ARGV!=1;
@@ -117,13 +127,15 @@ for (my $i=0; $i<@ph; $i++){
   my $next = addphoto::rel_dir($d, $dn) . "$bn.htm";
   my $up = ($opts{flat}?'':'../') . addphoto::rel_dir($d, '')  . "$html#ph" . ($i+1);
 
-  ## collect options for addphoto_img:
+  ## construct options for addphoto_img:
   my $o =
-    ($opts{gmap}  ? ' -g':'') .
-    ($opts{quiet} ? ' -q':'') .
-    ($opts{lang}  ? ' -l':'') .
-    ($opts{pswp}  ? ' --no-htm --med-img':'') .
-    ($opts{style} ? " -m '$opts{style}'":'') .
+    ($opts{gmap}    ? ' -g':'') .
+    ($opts{quiet}   ? ' -q':'') .
+    ($opts{lang}    ? ' -l':'') .
+    ($opts{pswp}    ? ' --no-htm':'') .
+    ($opts{style}   ? " -m '$opts{style}'":'') .
+    ($opts{th_size} ? " -T '$opts{th_size}'":'') .
+    ($opts{md_size} ? " -M '$opts{md_size}'":'') .
     ($t ? " -t \"$t\"":'') .
     " -p '$prev' -n '$next' -u '$up'";
   $o.=" $dir$base$_" foreach (@f);

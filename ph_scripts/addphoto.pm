@@ -9,7 +9,8 @@ our %msg = (
   pref => '&lt;&lt; предыдущая',
   uref => 'к оглавлению',
   nref => 'следующая &gt;&gt;',
-  mark_sw => 'для отключения пометок щелкните мышью по картинке',
+  mark_sw  => 'для отключения пометок щелкните мышью по картинке',
+  fullsize => 'полный размер',
 );
 
 our %msgl = (
@@ -27,6 +28,8 @@ our %msgl = (
           '<div class=en>next &gt;&gt;</div>',
   mark_sw => '<div class=ru>для отключения пометок щелкните мышью по картинке</div>'.
              '<div class=en>click the picture to switch marks</div>',
+  fullsize => '<div class=ru>полный размер</div>'.
+              '<div class=en>full size</div>',
 );
 
 our $lang_script=qq*
@@ -78,7 +81,6 @@ our $def_mstyle = 'aa_gif';
 our $def_quality = '90';
 our $def_scale = '800:600:10000';
 our $def_thscale = '260:160:800';
-our $def_mescale = '800:600:1000';
 
 #### Regular expressions for addphoto commands
 our $ph_re='^\\\photo([lr]?)\s+(\S+)\s*(.*)';
