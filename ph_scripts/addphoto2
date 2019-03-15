@@ -76,7 +76,7 @@ Getopt::Long::GetOptions(
   "html_charset=s"  => \$opts{html_charset}, # charset for html pages (not for index html)
 ) or pod2usage(1);
 
-my $html_version = '2.1'; # changes when regenerating of html pages is needed
+my $html_version = '2.2'; # changes when regenerating of html pages is needed
 
 
 pod2usage(-exitval => 0, -verbose => 2) if $opts{help};
@@ -963,7 +963,9 @@ for (my $i=0; $i<@ph; $i++){
 
     # main image
     my $main=qq*
-      <img id="image" class=img1 src='$imgref' width='$w' height='$h' alt='$ph->{atitle}'>*;
+      <img id=image class=img1 src='$imgref' alt='$ph->{atitle}'>*;
+    $sty .= qq*;
+        #image {width: 2805px; height:auto;}*;
 
     # marks + javascript for switching marks
     if ($ph->{use_mrk}){
@@ -977,7 +979,6 @@ for (my $i=0; $i<@ph; $i++){
       $scr .= "
         <script type='text/JavaScript' src='$markurl'></script>";
       $sty .= qq*
-        #image { position: absolute; left: 0px; top: 0px; width: ${w}px; height:auto;}
         #marks { position: absolute; left: 0px; top: 0px; width: ${w}px; height:auto; visibility:visible; }
         .mrk { font: 8pt sans-serif; text-align: right; }*;
       my $msg_mark = $opts{lang}? $msgl{mark_sw}:$msg{mark_sw};
@@ -987,10 +988,9 @@ for (my $i=0; $i<@ph; $i++){
         <input type="checkbox" checked onclick="update_vis()">
         </form></td></tr></table>*;
       $main = qq*
-      <div style="position: relative; height: ${h}px;"
-           onclick="sw_marks(); update_vis()">
-        <img id="image" class=img1 src="$imgref" alt="$ph->{atitle}">
-        <img id="marks" class=img1 src="$ph->{mrkname}">
+      <div style="position: relative;" onclick="sw_marks(); update_vis()">
+        <img id=image class=img1 src='$imgref' alt='$ph->{atitle}'>
+        <img id=marks class=img1 src='$ph->{mrkname}'>
       </div>*;
     }
 
