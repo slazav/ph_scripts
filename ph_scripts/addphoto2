@@ -1,0 +1,1275 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Getopt::Long;
+use Pod::Usage;
+use Digest::MD5;
+
+#################################################################
+### get options 
+my %opts = (
+  imgdir           => '.',
+  init_img_mask    => '(.jpe?g$)|(.png$)|(.tiff?$)|(.gif)$',
+  init_index_head  => "<html><body>\n",
+  init_index_tail  => "</body></html>\n",
+  init_width       => 800,
+  init_days        => 1,
+  th1_pref         => '_',
+  th1_size         => '260:160:800',
+  th1_rm_exif      => 1,
+  th2_pref         => '',
+  th2_size         => '800:600:1600',
+  th2_rm_exif      => 1,
+  mark_pref        => '_',
+  html_pref         => '',
+  quality          => 90,
+  map_ref          => 'nakarte',
+  map_zoom         => 6,
+  fig_lang         => 'ru_RU.KOI8-R',
+  html_charset     => 'koi8-r',
+  mstyle           => 'aa_gif',
+  fig_res          => 14.2875, # convert pixel -> fig units
+);
+my %re = (
+ photo => '^\\\photo([lr]?)\s+(\S+)\s*(.*)',
+ head  => '^\\\h([1-4])(r?)\s+(.*)',
+ keep  => '^\\\keep\s+(.*)',
+ set   => '^\\\set\s+(\S+)\s+(.*)',
+);
+Getopt::Long::Configure("no_ignore_case");
+Getopt::Long::GetOptions(
+  "h|help"          => \$opts{help},         # print help message
+  "v|verbose:1"     => \$opts{verbose},      # be verbose
+  "D|imgdir=s"      => \$opts{imgdir},       # image dir (relative to index file location, default .)
+  "H|html=s"        => \$opts{html},         # html file (relative to index file location)
+  "html_filter=s"   => \$opts{html_filter},  # filter for index html
+  "html_stdout:1"   => \$opts{html_stdout},  # print index html to stdout instead of writing to file. html option is still needed.
+  "I|init"          => \$opts{init},         # INIT MODE: create index file
+  "J|init_only"     => \$opts{init_only},    # create index file and exit
+  "T|init_tsort:1"  => \$opts{init_tsort},   # init mode: sort photos by time
+  "d|init_days:1"   => \$opts{init_days},    # init mode: add day headers
+  "r|init_rec:1"    => \$opts{init_rec},     # init mode: find files recursively
+  "w|init_width=i"  => \$opts{init_width},         # init mode: max page width
+  "init_img_mask=s" => \$opts{init_img_mask},      # init mode: mask for finding images
+  "init_index_head=s"  => \$opts{init_index_head}, # init mode: head for the index file
+  "init_index_tail=s"  => \$opts{init_index_tail}, # init mode: tail for the index file
+  "C|cleanup"       => \$opts{cleanup},      # CLEANUP MODE: remove unused files and exit
+  "f|force:1"       => \$opts{force},        # cleanup mode: do not ask before deleting files
+  "th1_pref=s"      => \$opts{th1_pref},     # Small thumbnail prefix (can end with /), empty for no thumbnails
+  "th1_size=s"      => \$opts{th1_size},     # Small thumbnail size (S1:S2:S3, see elsewhere)
+  "th1_rm_exif:1"   => \$opts{th1_rm_exif},  # Remove exif-data from small thumbnails (default)
+  "th2_pref=s"      => \$opts{th2_pref},     # Large thumbnail prefix (can and with /), empty for no thumbnails
+  "th2_size=s"      => \$opts{th2_size},     # Large thumbnail size (S1:S2:S3, see elsewhere)
+  "th2_rm_exif:1"   => \$opts{th2_rm_exif},  # Remove exif-data from large thumbnails (default)
+  "mark_pref=s"     => \$opts{mark_pref},    # Image marks prefix (can and with /), empty for no marks
+  "html_pref=s"     => \$opts{html_pref},    # Image marks prefix (can and with /), empty for no marks
+  "nohtml:1"        => \$opts{nohtml},       # Do not generate hmtl pages for images
+  "mstyle=s"        => \$opts{mstyle},       # Mark style
+  "l|lang:1"        => \$opts{lang},         # Language support
+  "pswp:1"          => \$opts{pswp},         # PhotoSwipe support
+  "quality=i"       => \$opts{quality},      # Jpeg quality for thumbnails (default 90)
+  "map_ref=s"       => \$opts{map_ref},      # Map link style (gmap, nakarte)
+  "map_zoom=i"      => \$opts{map_zoom},     # Map link zoom (default 6)
+  "fig_lang=s"      => \$opts{fig_lang},     # fig language
+  "fig_res=f"       => \$opts{fig_res},      # fig resolution
+  "html_charset=s"  => \$opts{html_charset}, # charset for html pages (not for index html)
+) or pod2usage(1);
+
+my $html_version = '2.1'; # changes when regenerating of html pages is needed
+
+
+pod2usage(-exitval => 0, -verbose => 2) if $opts{help};
+pod2usage(1) if @ARGV!=1;
+
+# index file name
+$opts{infile} = shift;
+
+# basedir (where infile located)
+$opts{basedir} = $opts{infile};
+$opts{basedir} =~ s/[^\/]*$//;
+$opts{basedir} =~ s|/+$||; # remove trailing /
+$opts{basedir} = '.' if $opts{basedir} eq '';
+
+# html file name (ralative to index file, can be changed later)
+unless ($opts{html}){
+  $opts{html} = $opts{infile};
+  $opts{html} =~ s/\.[^\.]*$/.htm/;
+}
+
+#################################################################
+#### FILE AND PATH FUNCTIONS
+
+#################################################################
+## list all files in the directory.
+sub read_dir{
+  my @ret;
+  my $dir   = shift;         # base dir
+  my $rec   = shift || 0;    # recursive?
+  my $retdir  = shift || ''; # inclure dir into return?
+  unless(opendir D, $dir){
+    warn "Skipping unreadable directory: $dir: $!\n";
+    return;
+  }
+  my @list = readdir D;
+  closedir D;
+
+  foreach my $f (@list){
+    next if $f =~ /^\.{1,2}$/;
+    my $df = "$dir/$f";
+    push(@ret, $retdir.$f) if (-f $df);
+    push(@ret, read_dir($df,$rec,$retdir.$f.'/')) if -d $df && $rec;
+  }
+  return @ret;
+}
+
+## Do we need to update file1 from file2
+## (is it older or does not exist)?
+sub isolder($$){
+  return 0 if (!-r $_[1]);
+  return 1 if (!-r $_[0]);
+  return (stat $_[0])[9] < (stat $_[1])[9];
+}
+
+## split path into full directory name + basename + last extension
+## './some/path/file.e1.e2.ext' -> './some/path/' + 'file.e1.e2' + '.ext'
+sub path_split($){
+  $_[0]=~m&(.*\/)?((.*)(\..*)|(.*)())&;
+  return (($1 or ''), ($3 or $5 or ''), ($4 or $6 or ''));
+}
+
+## Get relative path from dir1 to dir2.
+## Absolute paths, . and .. are ignored!
+sub rel_dir($$){
+  my @d1 = grep {/.+/ && !/^\.{1,2}$/} split '/', shift;
+  my @d2 = grep {/.+/ && !/^\.{1,2}$/} split '/', shift;
+  my $n;
+  for ($n = 0; $n <= $#d1 && $n <= $#d2; $n++){
+    last if ($d1[$n] ne $d2[$n])
+  }
+  my $ret='';
+  $ret .= "../" foreach @d1[$n..$#d1];
+  $ret .= "$_/" foreach @d2[$n..$#d2];
+  return $ret;
+}
+
+#################################################################
+#### IMAGE SIZE FUNCTIONS
+
+## get image size (identify from ImageMagick is needed).
+sub image_size($){
+  `identify "$_[0]" 2> /dev/null` =~/(\d+)x(\d+)/;
+  return ($1 || 0, $2 || 0);
+}
+
+## calculate rescaling factor:
+# - "Usual" images will be scaled to fit into S1xS1 square;
+# - long images will not be smaller then S2 on short edge;
+# - very long images will not be larger than S3 on long edge;
+# - small images will not be modified.
+sub image_scfactor($$$$$){
+  my ($x, $y, $m1, $m2, $m3) = @_;
+  $x=1.0*$x; $y=1.0*$y;
+
+  my $kx = $x/$m1;
+  my $ky = $y/$m1;
+
+  my $k = $kx>$ky ? $kx:$ky;
+
+  $k = $x/$m2 if $x/$k < $m2;
+  $k = $y/$m2 if $y/$k < $m2;
+
+  $k = $x/$m3 if $x/$k > $m3;
+  $k = $y/$m3 if $y/$k > $m3;
+
+  $k = 1 if $k<=1;
+  return $k;
+}
+
+## resize image
+## options: scale(s1:s2:s3), verbose, dryrun, rm_exif, quality
+## return 0 if no scaling is done/needed, 1 otherwise
+sub image_resize{
+  my ($in, $out, %o) = @_;
+  my ($x, $y) = image_size($in);
+  my $s = $o{scale};
+  my $q = $o{quality};
+  my ($s1, $s2, $s3) = split(':', $s);
+
+  return unless $x && $y;
+  my $k = image_scfactor($x, $y, $s1, $s2, $s3);
+
+  if ($k == 1 && !$o{rm_exif}) {
+    printf STDERR "%-20s %4d x %4d -> no changes\n", $in, $x, $y
+      if $o{verbose};
+    `cp -f "$in" "$out" 1>&2` if $out ne $in && !$o{dryrun};
+    return (0, $x, $y);
+  }
+
+  my ($xn, $yn) = (int($x/$k), int($y/$k));
+  printf STDERR "%-20s %4d x %4d -> %3d x %3d\n", $in, $x, $y, $xn, $yn
+    if $o{verbose};
+
+  unless ($o{dryrun}){
+    if ($out ne $in){
+      `convert -geometry ${xn}x${yn} -quality "$q" "$in" "$out" || cp -f "$in" "$out" 1>&2`;
+    }
+    else{
+      `convert -geometry ${xn}x${yn} -quality "$q" "$in" "$in" ||: 1>&2`;
+    }
+    `exiv2 rm $out` if $o{rm_exif};
+  }
+  return (1, $xn, $yn);
+}
+
+## get fig image dimensions in "pixels"
+sub fig_im_scale($$){
+  my ($figpath, $img) = @_;
+  my ($w, $h) = image_size($img);
+  $img=~s|.*/||;
+  my $fh;
+  open $fh, $figpath or return (0,0);
+  while (readline $fh){
+    next unless (/^\s+\d+\s+$img/);
+    readline($fh) =~
+      /^\s+([\d-]+)\s+([\d-]+)\s+([\d-]+)\s+([\d-]+)\s+([\d-]+)\s+([\d-]+)\s+([\d-]+)\s+([\d-]+)/;
+    my @x=sort($1, $3, $5, $7);
+    my @y=sort($2, $4, $6, $8);
+
+
+    my $fw = abs($x[3]-$x[1])/$opts{fig_res};
+    my $fh = abs($y[3]-$y[1])/$opts{fig_res};
+    return ($h/$fh + $w/$fw) / 2;
+  }
+  return 0;
+}
+
+#################################################################
+#### HTML writing functions
+
+## remove html tags from text, for html alt atribute
+sub rem_html($){
+  my $t=shift;
+  $t=~s/<[^>]*>//g;
+  $t=~s/[<>\']//g;
+  return $t;
+}
+
+## create table of contents
+## input: array of hashes with fields 'depth' and 'title'
+sub html_toc($$){
+  my $fh = shift;
+  my $hh = shift;
+  my $dp=0; # prev depth
+  my $d0=0; # initial depth
+  for (my $i=0; $i<@{$hh}; $i++){
+    my $d=$hh->[$i]->{depth};
+    my $t=$hh->[$i]->{title};
+
+    if ($dp==$d0){
+      $dp=$d0=$d-1;
+    }
+    for (;$dp<$d;$dp++) {print $fh '  'x($dp-1) . "<ul>\n";}
+    for (;$dp>$d;$dp--) {print $fh '  'x($dp-2) . "</ul>\n";}
+    print $fh '  'x($d-1) . "<li><a href=\"#h". ($i+1). "\">$t</a>\n";
+  }
+  for (;$dp>$d0;$dp--) {print $fh '  'x($dp-2) . "</ul>\n";}
+}
+
+#################################################################
+#### EXIF functions
+
+## Get exif-data as a hash, convert some values to human-readable form.
+## Returns hash ref with original exif fields and some converted fields:
+##  dat -- Exif.Photo.DateTimeOriginal or Exif.Image.DateTime,
+##  lon, lat, alt -- coordinates, altitude.
+## exiv2 program is needed.
+sub get_exif{
+  my $file=shift;
+  my $exif;
+  my $n;
+  # parse values from exiv2 output.
+  foreach (`exiv2 -Pkv $file 2>/dev/null`){
+    chomp;
+    my ($k, $v) = split(/\s+/,$_,2);
+    $exif->{$k}=$v if $v && $k;
+  }
+
+  my ($time, $alt, $lat, $lon);
+  # DateTime: convert 2009:10:20 10:11:12 -> 2009/10/20 10:11:12
+  foreach $n ('Exif.Image.DateTime',
+              'Exif.Photo.DateTimeOriginal'){
+    if ((exists $exif->{$n}) && ($exif->{$n} =~ /^(\d+):(\d+):(\d+)\s+(\d+):(\d+):(\d+)/)){
+      $time = "$1/$2/$3 $4:$5:$6"; }
+  }
+
+  # convert alt, lat, lon
+  $n='Exif.GPSInfo.GPSAltitude';
+  if ((exists $exif->{$n}) && ($exif->{$n}=~/^(\d+)\/(\d+)/)){
+    $alt = 1.0*$1/$2;
+    $alt=-$alt if (exists $exif->{$n.'Ref'}) && ($exif->{$n.'Ref'}!=0);
+  }
+  $n='Exif.GPSInfo.GPSLatitude';
+  if ((exists $exif->{$n}) && ($exif->{$n}=~/^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(\d+)\/(\d+)/)){
+    $lat = 1.0*$1/$2 + 1.0/60.0*$3/$4 + 1.0/3600.0*$5/$6;
+    $lat=-$lat if (exists $exif->{$n.'Ref'}) && ($exif->{$n.'Ref'}=~/^S/);
+  }
+  $n='Exif.GPSInfo.GPSLongitude';
+  if ((exists $exif->{$n}) && ($exif->{$n}=~/^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(\d+)\/(\d+)/)){
+    $lon = sprintf "%.7f", 1.0*$1/$2 + 1.0/60.0*$3/$4 + 1.0/3600.0*$5/$6;
+    $lon=-$exif->{lon} if (exists $exif->{$n.'Ref'}) && ($exif->{$n.'Ref'}=~/^W/);
+  }
+  return ($time, $alt, $lat, $lon);
+}
+
+
+#################################################################
+#### THUMBNAIL MARKS and KEYS functions
+
+## Thumbnail images can is marked with red dot if there are
+## some marks on the image. The mark is also kept in the jpeg comment
+## These two functions can add and check mark. For remothing mark
+## just regenerate thumbnail...
+## exiv2 and mogrify (from ImageMagick) programs are needed.
+sub thmark_add($){
+  my $f=shift;
+  `mogrify -fill red -draw 'circle 10,10,12,12' "$f"`;
+  `exiv2 -c "<marked>" "$f" 2>/dev/null`;
+}
+sub thmark_check($){
+  my $f=shift;
+  return -r $f && `exiv2 -pc "$f" 2>/dev/null` =~ /<marked>/;
+}
+
+# Key is used to check do we need to update html-file
+# It is md5_hex sum of all parameters used for html-file
+# generation
+sub key_read($){
+  my $fh;
+  return '' if ! open $fh, $_[0];
+  while (readline $fh){return $1 if m|<!--KEY:([a-fA-F\d]*)-->|; }
+  return '';
+}
+
+#################################################################
+## HTML and JS code
+
+my $mark_script = qq*
+    function update_vis(){
+      document.getElementById("marks").style.visibility=
+        document.forms[0].elements[0].checked?'visible':'hidden'}
+    function sw_marks(){
+      document.forms[0].elements[0].checked=
+        !document.forms[0].elements[0].checked}*;
+
+my $lang_script=qq*
+    var langs=['ru', 'en'];
+    var lang_def='ru';
+    function lang_set(lang){
+      document.cookie = "lang=" + lang + "; path=/";
+      for (var i=0; i<langs.length; i++){
+        document.getElementById("lang_"+langs[i]).style.fontWeight=
+          (langs[i]==lang) ? 'bold':'normal';
+        var els=document.getElementsByClassName(langs[i]);
+        for (var j=0; j<els.length; j++){
+          els[j].style.display = (langs[i]==lang) ? 'inline':'none'; }
+      }
+    }
+    // set language from document url
+    function lang_init(){
+      var cookie = document.cookie;
+      var i1 = cookie.indexOf(" lang=");
+      if (i1 == -1) { i1 = cookie.indexOf("lang="); }
+      if (i1 == -1) {lang_set(lang_def);}
+      else {
+        i1 = cookie.indexOf("=", i1) + 1;
+        var i2 = cookie.indexOf(";", i1);
+        if (i2 == -1) { i2 = cookie.length; }
+        lang_set(cookie.substring(i1,i2));
+      }
+    }*;
+
+my $html_lang_switch = qq*
+  <div align=right><font color=blue style='cursor: pointer;'>
+    <u><span class="ru_control" id=lang_ru onclick="lang_set('ru')">ru</span></u>
+    <u><span class="en_control" id=lang_en onclick="lang_set('en')">en</span></u>
+  </font></div>*;
+
+my %msg = (
+  dat_fmt => 'Дата и время съемки: ',
+  alt_fmt => 'Высота, м: ',
+  crd_fmt => 'Координаты: ',
+  pref => '&lt;&lt; предыдущая',
+  uref => 'к оглавлению',
+  nref => 'следующая &gt;&gt;',
+  mark_sw  => 'для отключения пометок щелкните мышью по картинке',
+  fullsize => 'полный размер',
+  scrsize => 'к размеру экрана',
+);
+
+my %msgl = (
+  dat_fmt => '<div class=ru>Дата и время: </div>'.
+             '<div class=en>Date and time: </div>',
+  alt_fmt => '<div class=ru>Высота, м: </div>'.
+             '<div class=en>Altitude, m: </div>',
+  crd_fmt => '<div class=ru>Широта и долгота: </div>'.
+             '<div class=en>Latitude and longitude: </div>',
+  pref => '<div class=ru>&lt;&lt; предыдущая</div>'.
+          '<div class=en>&lt;&lt; prev.</div>',
+  uref => '<div class=ru>к оглавлению</div>'.
+          '<div class=en>up</div>',
+  nref => '<div class=ru>следующая &gt;&gt;</div>'.
+          '<div class=en>next &gt;&gt;</div>',
+  mark_sw => '<div class=ru>для отключения пометок щелкните мышью по картинке</div>'.
+             '<div class=en>click the picture to switch marks</div>',
+  fullsize => '<div class=ru>полный размер</div>'.
+              '<div class=en>full size</div>',
+  scrsize => '<div class=ru>к размеру экрана</div>'.
+              '<div class=en>fit to screen</div>',
+);
+
+## print latlon coords with or without referense to google/nakarte
+sub html_crd($$$){
+  my ($lat, $lon, $name) = @_;
+  my $style = $opts{map_ref};
+  my $zoom  = $opts{map_zoom};
+  if ($style eq 'gmap'){
+    return sprintf('<a href="http://maps.google.com?t=h&' .
+                   'q=%.7f+%.7f&ll=%.7f,%.7f&z=%d">%.7f %.7f</a><br/>',
+                    $lat, $lon, $lat, $lon, $zoom, $lat, $lon);
+  }
+  if ($style eq 'nakarte'){
+    return sprintf('<a href="https://nakarte.me/#m=%d/%f/%f&nktp=%f/%f/%s&l=O">%.7f %.7f</a><br/>',
+                    $zoom, $lat, $lon, $lat, $lon, $name, $lat, $lon);
+  }
+  return sprintf('%.7f %.7f', $lat, $lon);
+}
+
+## print exif data in HTML for a given filename
+sub html_exif($){
+  my $ph = shift;
+  my $ret='';
+
+  my %fw; # wrapped format strings
+  if ($opts{lang}){
+    $fw{$_} = "\n      <br/>$msgl{$_}"
+      foreach ('dat_fmt', 'alt_fmt', 'crd_fmt');
+  }
+  else {
+    $fw{$_} = "\n      <br/>$msg{$_}"
+      foreach ('dat_fmt', 'alt_fmt', 'crd_fmt');
+  }
+  $ret .= $fw{dat_fmt} . $ph->{time} if $ph->{time};
+  $ret .= $fw{alt_fmt} . $ph->{alt}  if $ph->{alt};
+  $ret .= $fw{crd_fmt} . html_crd($ph->{lat}, $ph->{lon}, $ph->{imgname})
+                   if $ph->{lat} && $ph->{lon};
+  return $ret;
+}
+
+#################################################################
+#################################################################
+# INIT call - do index file, then continue as usual
+if ($opts{init} || $opts{init_only}){
+
+  print STDERR "[Creating index file...]\n" if $opts{verbose};
+  die "can't find base folder: $opts{basedir}\n"
+    unless -d $opts{basedir};
+
+  die "can't find image folder: $opts{basedir}/$opts{imgdir}\n"
+    unless -d "$opts{basedir}/$opts{imgdir}";
+
+  ## get image file list
+  my @files = grep {/$opts{init_img_mask}/i}
+    read_dir("$opts{basedir}/$opts{imgdir}", $opts{init_rec});
+
+  ## remove thumbnail, mark, html files from the list
+  @files = grep {!/^$opts{th1_pref}.+$opts{init_img_mask}|\/$opts{th1_pref}.+$opts{init_img_mask}/i} @files
+    if $opts{th1_pref};
+  @files = grep {!/^$opts{th2_pref}.+$opts{init_img_mask}|\/$opts{th2_pref}.+$opts{init_img_mask}/i} @files
+    if $opts{th2_pref};
+  @files = grep {!/^$opts{mark_pref}.+$opts{init_img_mask}|\/$opts{mark_pref}.+$opts{init_img_mask}/i} @files
+    if $opts{mark_pref};
+
+  ## collect information about files: date, time, thumbnail width
+  my %files;
+  foreach my $file (@files) {
+    my $path = "$opts{basedir}/$opts{imgdir}/$file";
+
+    # get width of small thumbnail (it can be missing!)
+    my ($ret, $w, $h) =
+      split(/\s+/, `ph_resize --scale $opts{th1_size} --dryrun --printres $path /dev/null`);
+
+    # time from exif
+    my $time = get_exif($path) || '';
+
+    # day only
+    my $date = (split(/\s+/, $time))[0];
+
+    # relative path
+    my $p = $file; $p=~s|^$opts{basedir}/||; # relative dir
+
+    $files{$file} = {w=>$w, d=>$date, t=>$time, p=>$p};
+  }
+
+  rename $opts{infile}, "$opts{infile}.bak" if -f $opts{infile};
+  open OUT, "> $opts{infile}" or die "Can't open $opts{infile}: $!\n";
+
+  my $ww=0;  # current width
+  my $od=''; # current date
+
+  my @list = $opts{init_tsort}? (sort {$files{$a}->{t} cmp $files{$b}->{t}} keys %files) :
+                                (sort keys %files);
+
+  print OUT $opts{init_index_head};
+  foreach (@list) {
+    my $d = $files{$_}->{d};
+    my $w = $files{$_}->{w};
+    my $p = $files{$_}->{p};
+
+    if ( $od ne $d && $opts{init_days}){
+      print OUT "\n\\h4r $d\n";
+      $ww=0;
+      $od=$d;
+    }
+
+    $ww+=$w;
+    if ($ww>$opts{init_width}) {
+      print OUT "\n";
+      $ww=$w;
+    }
+    print OUT "\\photo $p\n";
+  }
+
+  print OUT $opts{init_index_tail};
+  close OUT;
+  exit 0 if $opts{init_only};
+}
+
+
+
+
+#################################################################
+#################################################################
+### Read index file, extract photo and header lists, set options.
+
+open IN, $opts{infile} or
+  die "can't open $opts{infile}: $!\n";
+
+my @ph;
+my @hh;
+my @keep;
+foreach(<IN>){
+  next unless /^\\/; # skip non-command lines
+  last if /^\\end/;  # stop at \end command
+  if (/$re{photo}/){     # images
+    my $al = ($1 eq 'r'?'right':($1 eq 'l'? 'left':'center'));
+    my $name = $2;
+    my $title = $3 || '';
+    if ($name=~m|^/| || $name=~m|^\.\.//| || $name=~m|/\.\./|){
+      warn "Skip image with non-relative path: $2\n";
+      next;
+    }
+    push @ph, {files=>[split(',', $name)], title=>$title, align=>$al};
+  }
+  elsif (/$re{head}/){  # headers
+    my ($d, $t) = ($1, $3);
+    push @hh, {depth=>$d, title=>$t};
+  }
+  elsif (/$re{keep}/){  # keep command
+    push @keep, $1;
+  }
+  elsif (/$re{set}/){  # set command
+    $opts{$1} = $2;
+  }
+}
+
+
+# now all configuration should be read.
+my $imgdir = "$opts{basedir}/$opts{imgdir}/";
+$imgdir =~ s|^(\./)+||;
+
+#################################################################
+#################################################################
+# CLEANUP call - remove unused files and exit
+if ($opts{cleanup}){
+  my %keep;
+  print STDERR "[Cleanup mode...]\n" if $opts{verbose};
+  foreach my $ph (@ph) {
+    my @f = split(',', $ph);
+    # add all images
+    $keep{"$imgdir$_"} = 1 foreach (@f);
+
+    my ($d, $b, $e) = path_split($f[0]);
+    # add html and thumbnail for this image
+    $keep{"$imgdir$d$b.htm"} = 1;
+    $keep{"$imgdir$d$opts{th1_pref}$b.$e"} = 1 if $opts{th1_pref};
+    $keep{"$imgdir$d$opts{th2_pref}$b.$e"} = 1 if $opts{th2_pref};
+    $keep{"$imgdir$d$opts{html_pref}$b.htm"} = 1 unless $opts{nohtml};
+    # add mark files
+    if ( -f "$imgdir$d$b.fig"){
+      $keep{"$imgdir$d$b.fig"} = 1;
+      $keep{"$imgdir$d$opts{mark_pref}$b.gif"} = 1 if $opts{th1_pref};
+    }
+  }
+  # add files from \keep commands
+  foreach (@keep) {
+    $keep{$_} = 1 foreach (glob "$imgdir$1");
+  }
+  # add index file if needed
+  $keep{$opts{infile}} = 1 if $opts{imgdir} eq '.';
+  $keep{"$opts{basedir}/$opts{html}"} = 1 if $opts{imgdir} eq '.';
+  $keep{"lang.js"} = 1;
+  $keep{"mark.js"} = 1;
+
+  ### get files to delete
+  my @del;
+  foreach(read_dir($imgdir, 1)){
+    push(@del, $_) unless exists($keep{$_});
+  }
+  exit 0 if $#del<0;
+
+  ### print file list
+  if (!$opts{quiet}){
+    printf STDERR "Files to remove (%d):\n", $#del+1;
+    print STDERR join("\n", sort @del), "\n";
+  }
+
+  ### ask question
+  if (!$opts{force} && !$opts{dryrun}){
+    print STDERR "Remove these files (y|N)? ";
+    $opts{dryrun} = 1 unless getc =~ /y/i;
+  }
+
+  ### remove files
+  if (!$opts{dryrun}){
+    printf STDERR "Files have been removed.\n", $#del+1;
+    unlink foreach @del;
+  }
+
+  exit 0;
+}
+
+
+#################################################################
+#################################################################
+### Update files, collect information
+print STDERR "[Updating files...]\n" if $opts{verbose};
+for (my $i=0; $i<@ph; $i++){
+  my $ph = $ph[$i];
+
+  $ph->{title}  =~ s/\"/\\\"/g;
+  $ph->{atitle} = rem_html($ph->{title});
+
+  my @files = @{$ph->{files}};
+  foreach (@files) {die "error: can't find file: $_\n" unless -f "$imgdir$_";}
+  my $f0 = shift @files;
+
+  ## previous and next files:
+  my $fp = ${$ph[$i==0? $#ph : $i-1]->{files}}[0];
+  my $fn = ${$ph[$i==$#ph? 0 : $i+1]->{files}}[0];
+
+  ## navigation links:
+  my ($d0, $b0, $e0) = path_split($f0);
+  my ($dp, $bp, $ep) = path_split($fp);
+  my ($dn, $bn, $en) = path_split($fn);
+  my $purl = rel_dir($d0, $dp) . "$bp.htm";
+  my $nurl = rel_dir($d0, $dn) . "$bn.htm";
+  my $uurl = rel_dir("$opts{imgdir}/$d0", '')  . "$opts{html}#ph" . ($i+1);
+
+  # related files (paths from the image location)
+  $ph->{imgname} = "$b0$e0";
+  $ph->{figname} = "$b0.fig";
+  $ph->{th1name} = "$opts{th1_pref}$b0$e0";
+  $ph->{th2name} = "$opts{th2_pref}$b0$e0";
+  $ph->{mrkname} = "$opts{mark_pref}$b0.gif";
+  $ph->{htmname} = "$opts{html_pref}$b0.htm";
+
+#  my $th1dir = $ph->{th1name} =~
+  $ph->{imgdir2img} = $d0;
+  $ph->{img2imgdir} = rel_dir($d0, '');
+
+  # related files (paths from cwd)
+  $ph->{imgpath} = "$imgdir$d0$ph->{imgname}";
+  $ph->{figpath} = "$imgdir$d0$ph->{figname}";
+  $ph->{th1path} = "$imgdir$d0$ph->{th1name}";
+  $ph->{th2path} = "$imgdir$d0$ph->{th2name}";
+  $ph->{mrkpath} = "$imgdir$d0$ph->{mrkname}";
+  $ph->{htmpath} = "$imgdir$d0$ph->{htmname}";
+  unlink($ph->{htmpath}) if $opts{nohtml};
+
+  ## do we want to create marks?
+  $ph->{use_mrk} = -r $ph->{figpath} && $opts{mark_pref};
+
+  ############################################################
+  ## update thumbnail image:
+  $ph->{use_th1} = $opts{th1_pref} && $opts{th1_size};
+  if ($ph->{use_th1}) {
+    ## if $opts{th1_pref} is a folder, create it
+    mkdir "$imgdir$d0$opts{th1_pref}"
+      if $opts{th1_pref} =~ m|/$| && ! -d "$imgdir$d0$opts{th1_pref}";
+    ## if th1 file is older then the image OR red mark should be cleaned, update th1
+    if (isolder($ph->{th1path}, $ph->{imgpath}) ||
+        (thmark_check($ph->{th1path}) && ! $ph->{use_mrk} && $#files<0)){
+      print STDERR "  updating thumbnail: " if $opts{verbose};
+      `ph_resize --scale $opts{th1_size} --verbose $opts{verbose}\\
+         --quality $opts{quality} --rm_exif $opts{th1_rm_exif} $ph->{imgpath} $ph->{th1path}`;
+    }
+    ## add thumbnail mark if needed
+    thmark_add($ph->{th1path}) if $ph->{use_mrk} && !thmark_check($ph->{th1path});
+    thmark_add($ph->{th1path}) if $#files >= 0;
+    ## th1 size
+    ($ph->{th1_w}, $ph->{th1_h}) = image_size($ph->{th1path});
+  }
+  else {
+    # th1 size is needed for html index even if file does not exist
+     my $ret;
+    ($ret, $ph->{th1_w}, $ph->{th1_h}) =
+      split /\s+/,`ph_resize --scale $opts{th1_size} --verbose 0 --dryrun $ph->{imgpath} /dev/null`;
+  }
+
+  ############################################################
+  ## update medium-size thumbnail
+  $ph->{use_th2} = $opts{th2_pref} && $opts{th2_size};
+  if ($ph->{use_th2}) {
+    ## if $opts{th2_pref} is a folder, create it
+    mkdir "$imgdir$d0$opts{th2_pref}"
+      if $opts{th2_pref} =~ m|/$| && ! -d "$imgdir$d0$opts{th2_pref}";
+    ## if th2 file is older then the image, update it
+    if (isolder($ph->{th2path}, $ph->{imgpath})){
+      print STDERR "  updating medium-size image: " if $opts{verbose};
+      `ph_resize --scale $opts{th2_size} --verbose $opts{verbose}\\
+         --quality $opts{quality} --rm_exif $opts{th2_rm_exif} $ph->{imgpath} $ph->{th2path}`;
+    }
+    ## th2 size
+    ($ph->{th2_w}, $ph->{th2_h}) = image_size($ph->{th2path});
+  }
+
+  ## image size
+  ($ph->{img_w}, $ph->{img_h}) = image_size($ph->{imgpath});
+
+  ## exif data
+  ($ph->{time}, $ph->{alt}, $ph->{lat}, $ph->{lon}) = get_exif($ph->{imgpath});
+
+  ############################################################
+  ## update marks if fig-file exists and newer then the mark file
+  if ($ph->{use_mrk}) {
+    ## if $opts{mark_pref} is a folder, create it
+    mkdir "$imgdir$d0$opts{mark_pref}"
+      if $opts{mark_pref} =~ m|/$| && ! -d "$imgdir$d0$opts{mark_pref}";
+    ## if th2 file is older then the image, update it
+    if (isolder($ph->{mrkpath}, $ph->{figpath})){
+      print STDERR "  creating mark file: $ph->{mrkpath}\n" if $opts{verbose};
+
+      my $sc=fig_im_scale($ph->{figpath}, $ph->{imgpath});
+      die "Bad fig file: $ph->{figpath}" unless $sc;
+      $sc*=2 if $opts{mstyle} ne 'simple_gif';
+
+      ## create gif file
+      qx* LANG="$opts{fig_lang}"\\
+       fig2dev -m$sc -j -Lgif -D +0:200 -t'#FFFFFF' "$ph->{figpath}" "$ph->{mrkpath}" ||\\
+         rm -f -- "$ph->{mrkpath}"*;
+
+      ## build script for convert program
+      # IE can only show transparent gifs, not png.
+      # We can't use semi-transparent png here :(
+      my $cmd;
+      if ($opts{mstyle} eq 'simple_gif'){
+      }
+      elsif ($opts{mstyle} eq 'aa_gif'){
+        $cmd=qq*
+            ( "$ph->{imgpath}"
+              ( "$ph->{mrkpath}" -alpha extract -blur 0.8 -threshold 15 -resize 50% )
+              +matte -compose copy-opacity -composite -blur 2 )
+            ( "$ph->{mrkpath}" -resize 50% )
+            -compose over -composite
+            "$ph->{mrkpath}"*;
+      }
+      elsif ($opts{mstyle} eq 'aa_gif_halo'){
+        $cmd = qq*
+            ( "$ph->{imgpath}"
+              ( "$ph->{mrkpath}" -alpha extract -blur 1.2 -threshold 15 -resize 50% )
+              +matte -compose copy-opacity -composite )
+            ( "$ph->{mrkpath}"
+              ( -clone 0 +matte +level-colors white.
+                ( -clone 0 -alpha extract -blur 4x3 -level 0%,50% )
+                +matte -compose copy-opacity -composite )
+              -compose dst-over -composite
+              -resize 50% )
+            -compose over -composite
+            "$ph->{mrkpath}"*;
+      }
+      elsif ($opts{mstyle} eq 'aa_gif_dark_halo'){
+        $cmd = qq*
+            ( "$ph->{imgpath}"
+              ( "$ph->{mrkpath}" -alpha extract -blur 1.2 -threshold 15 -resize 50% )
+              +matte -compose copy-opacity -composite )
+            ( "$ph->{mrkpath}" +level 0,30%
+              ( -clone 0 +matte +level-colors white
+                ( -clone 0 -alpha extract -blur 4x3 -level 0%,50% )
+                +matte -compose copy-opacity -composite )
+              -compose dst-over -composite
+              -resize 50% )
+            -compose over -composite
+            "$ph->{mrkpath}"*;
+       }
+#        elsif ($opts{mstyle} eq 'png_dark_halo'){
+#        $cmd=qq*
+#            "$ph->{mrkpath}" +level 0,30%
+#            ( -clone 0 +matte +level-colors white
+#              ( -clone 0 -alpha extract -blur 4x3 -level 0%,50% )
+#               +matte -compose copy-opacity -composite )
+#            -compose dst-over -composite
+#            -resize 50%
+#            "$ph->{mrkpath}"*;
+#        }
+
+       else{
+         die "Unknown mark style: $opts{mstyle}\n";
+       }
+       if ($cmd){
+         $cmd =~ s/([\(\)\n])/\\$1/g;
+         qx"convert $cmd";
+       }
+
+    }
+  }
+
+  ############################################################
+  ## Create html if needed.
+  ## We use "key" to check that html-file is up-to-date.
+
+  # image reference for html
+  my $imgref = $ph->{use_th2} ? $ph->{th2name}:$ph->{imgname};
+  my $w      = $ph->{use_th2} ? $ph->{th2_w}:$ph->{img_w};
+  my $h      = $ph->{use_th2} ? $ph->{th2_h}:$ph->{img_h};
+
+  my ($key, $oldkey);
+  if (!$opts{nohtml}){
+    $key = Digest::MD5::md5_hex(join("\n",(
+      $imgref, $w, $h, @files,
+      $ph->{title}, $purl, $uurl, $nurl,
+      ($ph->{use_mrk} ? $opts{mstyle}:''),
+      $ph->{use_th1}, $ph->{use_th2},
+      $opts{map_ref} || '', $opts{map_zoom},
+      $opts{lang} || '', $html_version)));
+    $oldkey = key_read($ph->{htmpath});
+  }
+
+  if (!$opts{nohtml} && $key ne $oldkey){
+    print STDERR "  creating html file: $ph->{htmpath}\n" if $opts{verbose};
+
+    # default values for html style, scripts, top and bottom text
+    my $sty=qq*
+      a {text-decoration:none;}
+      .img1 {max-width:100%; height:auto;}
+      .img2 {max-width:''; height:auto;}*;
+    my $scr="";
+    my $init="";
+    my $top="";
+    my $btm="";
+    my $head .=qq*
+      <meta http-equiv="Content-Type" content="text/html; charset=$opts{html_charset}"/>*
+      if $opts{html_charset};
+    $head .=qq*
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">*;
+
+
+    # make language switch
+    if ($opts{lang}){
+      $top  .= $html_lang_switch;
+      $init .= ' onload="lang_init()"';
+      my $s="${imgdir}lang.js";
+      unless (-s $s){
+        open  O, ">$s" or die "Can't open $s: $!\n";
+        print O $lang_script;
+        close O;
+      }
+      my $langurl = $ph->{img2imgdir} . 'lang.js';
+      $scr  .= "
+        <script type='text/JavaScript' src='$langurl'></script>";
+      $sty  .= qq*
+        .ru_control,.en_control {color:blue;cursor:pointer; }
+        .ru {display:inline;}
+        .en {display:none;}*;
+    }
+
+    # make title
+    if ( $ph->{title} ){
+      $head .= qq*
+      <title>$ph->{atitle}</title>*;
+      $btm .= qq*
+      <div class=title>$ph->{title}</div>*;
+      $sty .= qq*
+        .title { font: 16pt sans-serif;
+                margin: 0px; padding-bottom: 20px;
+                border-bottom: 1px solid #E0E0E0; width: 100%}*;
+    }
+
+    # make navigation panel
+    if ( $purl || $uurl || $nurl){
+      my ($p,$u,$n,$ss);
+      if ($opts{lang}){
+        $p = $msgl{pref};
+        $u = $msgl{uref};
+        $n = $msgl{nref};
+        $ss = $msgl{scrsize};
+      }
+      else {
+        $p = $msg{pref};
+        $u = $msg{uref};
+        $n = $msg{nref};
+        $ss = $msg{scrsize};
+      }
+      $p = "<a href=\"$purl\">$p</a>" if $purl;
+      $u = "<a href=\"$uurl\">$u</a>" if $uurl;
+      $n = "<a href=\"$nurl\">$n</a>" if $nurl;
+      $top .= qq*
+      <div class=addphoto-nav>
+        <div class=addphoto-pbtn>$p</div>
+        <div class=addphoto-ubtn>$u</div>
+        <div class=addphoto-nbtn>$n</div>
+        <br><div class=addphoto-tbtn onclick="switch_scr()">$ss</div>
+      </div>*;
+      # style
+      $sty .= qq*
+        .addphoto-nav {content:'';display:block;width:100%;
+                       font: bold 10pt sans-serif;}
+        .addphoto-pbtn,.addphoto-ubtn,.addphoto-nbtn {
+                       padding:2 10px; display:inline-block;}
+        .addphoto-tbtn { display: none; color:blue; cursor: pointer;}
+        \@media screen and (max-width: ${w}px) {
+          .addphoto-tbtn { display: inline;} }*;
+      # navigation links in the head
+      $head .= qq*
+      <link rel="top" href="$uurl">* if $uurl;
+      $head .= qq*
+      <link rel="previous" href="$purl">* if $purl;
+      $head .= qq*
+      <link rel="next" href="$nurl">* if $nurl;
+      $head .= qq*
+      <script>
+        function switch_scr(){
+          image = document.getElementById("image");
+          if (!image) {return;}
+          cn = (image.className=='img1' ? 'img2':'img1');
+          image.className = cn;
+          marks = document.getElementById("marks");
+          if (!marks) {return;}
+          marks.className = cn;
+        }
+      </script>*;
+
+    }
+
+    # main image
+    my $main=qq*
+      <img id="image" class=img1 src='$imgref' width='$w' height='$h' alt='$ph->{atitle}'>*;
+
+    # marks + javascript for switching marks
+    if ($ph->{use_mrk}){
+      my $s="${imgdir}mark.js";
+      unless (-s $s){
+        open O, "> $s" or die "Can't open $s: $!\n";
+        print O $mark_script;
+        close O;
+      }
+      my $markurl = $ph->{img2imgdir} . "mark.js";
+      $scr .= "
+        <script type='text/JavaScript' src='$markurl'></script>";
+      $sty .= qq*
+        #image { position: absolute; left: 0px; top: 0px; width: ${w}px; height:auto;}
+        #marks { position: absolute; left: 0px; top: 0px; width: ${w}px; height:auto; visibility:visible; }
+        .mrk { font: 8pt sans-serif; text-align: right; }*;
+      my $msg_mark = $opts{lang}? $msgl{mark_sw}:$msg{mark_sw};
+      $btm .= qq*
+      <table align=right class=mrk><tr><td><form>
+        $msg_mark
+        <input type="checkbox" checked onclick="update_vis()">
+        </form></td></tr></table>*;
+      $main = qq*
+      <div style="position: relative; height: ${h}px;"
+           onclick="sw_marks(); update_vis()">
+        <img id="image" class=img1 src="$imgref" alt="$ph->{atitle}">
+        <img id="marks" class=img1 src="$ph->{mrkname}">
+      </div>*;
+    }
+
+    # multiple images:
+    if ($#files>=0){
+      my $nn=$#files+2;
+      $scr .= qq*    <script type="text/JavaScript">
+        var nv = 0;
+        function sw_imgs(){
+          nv=(nv+1)\%$nn;
+          for (var i=1;i<$nn;i++){
+            document.getElementById("img"+i).style.visibility=
+              i<=nv?'visible':'hidden'}}
+      </script>*;
+      $sty .= qq*
+        #img0 { position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px; }
+        .mrk { font: 8pt sans-serif; text-align: right; }*;
+
+      $main = qq*
+      <div style="position: relative; height: ${h}px;"
+           onclick="sw_imgs();">
+        <img id="img0" src="$imgref" alt="$ph->{atitle}">*;
+      for(my $i=1; $i<=$#files+1; $i++){
+        my ($d, $b, $e) = path_split($files[$i-1]);
+        $sty .= qq*
+          #img$i { position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: hidden; }*;
+        $main .= qq*
+        <img id="img$i" src="$b$e" alt="$ph->{atitle}">*;
+      }
+      $main .= qq*
+      </div>*;
+    }
+
+    # info from exif
+    my $exif = html_exif($ph);
+    $btm .= qq*
+      <div class=exif>$exif
+      </div>*;
+    $sty .= qq*
+        .exif { font: bold 8pt sans-serif;}*;
+
+    # full size
+    if ($ph->{use_th2}) {
+      my $txt = $opts{lang}? $msgl{fullsize}:$msg{fullsize};
+      $btm .= qq*
+      <div class=fullsize><a href="$b0$e0">[$txt]</a></div>*;
+      $sty .= qq*
+       .fullsize { font: bold 8pt sans-serif;}*;
+    }
+
+    # wrap style settings
+    if ($sty){
+      $sty = qq*
+      <style type="TEXT/CSS">$sty
+      </style>*;
+    }
+
+    # write html
+    open OUT, "> $ph->{htmpath}" or die "can't open $ph->{htmpath}: $!\n";
+    print OUT qq*<html> <!--KEY:$key-->
+    <head>$head$scr$sty
+    </head>
+    <body bgcolor="#FFFFFF"$init>$top$main$btm
+    </body>*;
+    print OUT "\n</html>\n";
+    close OUT;
+  }
+}
+
+#################################################################
+### create index html
+seek IN, 0, 0;
+my $op_tab=0;
+my $np=0;
+my $nh=0;
+
+my $of = "$opts{basedir}/$opts{html}";
+$of = '/dev/stdout' if $opts{html_stdout};
+$of = "| $opts{html_filter} > $of" if $opts{html_filter};
+
+## how to go from html index to image dir:
+my $htmldir = "$opts{html}";
+$htmldir =~ s/[^\/]*$//;
+$htmldir =~ s|/+$||; # remove trailing /
+my $htm2image = rel_dir($htmldir, $opts{imgdir});
+
+open OUT, "> $of" or die "Can't open $of: $!\n";
+print STDERR "[Creating HTML index: $of]\n" if $opts{verbose};
+
+foreach(<IN>){
+  if (/$re{photo}/){ # \photo commands
+    my $ph = $ph[$np++];
+    my ($img, $title) = (${$ph[$np-1]->{files}}[0], $ph[$np-1]->{title});
+
+    # paths of html page and thumbnail image from album index
+    my ($id, $ib, $ie) = path_split($img);
+    my $imgfile = "$htm2image$ph->{imgdir2img}$ph->{imgname}";
+    my $htmfile = "$htm2image$ph->{imgdir2img}$ph->{htmname}";
+    my $th1file = "$htm2image$ph->{imgdir2img}$ph->{th1name}";
+    my $th2file = "$htm2image$ph->{imgdir2img}$ph->{th2name}";
+    my $mrkfile = "$htm2image$ph->{imgdir2img}$ph->{mrkname}";
+    # what to use in the index:
+    my $th0file = $ph->{use_th1} ? $th1file : ($ph->{use_th2} ? $th2file : $imgfile);
+
+    # get size of small thumbnail (it can be missing if use_th1==0!)
+    my ($ret, $w, $h) =
+        image_resize($ph->{imgpath}, '/dev/null', (scale=>$opts{th1_size}, dryrun=>1, verbose=>0));
+
+    my $pswp_data='';
+    if ($opts{pswp}){
+      $pswp_data .= " class='pswp_image'";
+      $pswp_data .= " data-size=${w}x${h}";
+    }
+
+    print OUT "<div class=addphoto-row>\n" unless $op_tab;
+    $op_tab=1;
+    print OUT "<div class=addphoto-img><a name='ph$np'></a>\n";
+
+    # collect all information for pswp in <div>
+    if ($opts{pswp}){
+      # size of the big image
+      print OUT "<div class='pswp_image' data='$imgfile' data-size='$ph->{img_w}x$ph->{img_h}'\n";
+      print OUT "  data-med='$th2file' data-med-size='$ph->{th2_w}x$ph->{th2_h}'\n" if $ph->{use_th2};
+      print OUT "  mark-src='$mrkfile'\n" if $ph->{use_mrk};
+
+      print  OUT "  dat='$ph->{time}'" if $ph->{time};
+      printf OUT "  alt='%.1f'", $ph->{alt} if $ph->{alt};
+      printf OUT "  lat='%.6f'", $ph->{lat} if $ph->{lat};
+      printf OUT "  lon='%.6f'", $ph->{lon} if $ph->{lon};
+      print  OUT ">\n";
+      print  OUT "<a href='$imgfile'>\n";
+    }
+    else {
+      print OUT "<a href='$htmfile'>\n";
+    }
+    print OUT "<img src='$th0file' alt='$ph->{atitle}'\n";
+    print OUT "  width=$w height=$h></a><br>\n";
+    print OUT "<div class='caption' style='width:$w'>$ph->{title}</div>\n";
+    if ($opts{pswp}){ print OUT "</div>\n"; }
+    print OUT "</div>\n";
+  }
+  else{
+    print OUT "</div>\n" if $op_tab; # close row
+    $op_tab=0;
+    if (/$re{head}/){ # \h commands
+      $nh++;
+      my ($depth, $title) = ($hh[$nh-1]->{depth}, $hh[$nh-1]->{title});
+      print OUT ($2 eq 'r'?'<hr>':'') .
+        "<a name='h" . $nh . "'></a><h$depth>$title</h$1>\n";
+    }
+    elsif (/^\\toc/){ html_toc(*OUT, \@hh); }
+    elsif (/^\\end/){ last; }
+    elsif (/^\\\\/){ s/^\\//; print OUT $_; }
+    elsif (/^\\#/){}    # skip comments
+    elsif (/^\\keep/){} # skip keep commands
+    elsif (/^\\set/){}  # skip set command
+    elsif (/^\\/){ warn "warning: skipping unknown command: $_\n"; }
+    else{ print OUT $_; }
+  }
+}
+print OUT "</div>\n" if $op_tab; # close row
+close OUT;
+print STDERR "[Done: $np photos, $nh headers]\n" if $opts{verbose};
+
+__END__
+
+=head1 NAME
+
+addphoto2 -- create html photoalbums from text templates
+
+
+=head1 SYNOPSIS
+
+=over 2
+
+=item $0 <options> <infile>
+
+=back
+
+=head1 OPTIONS
+
+=over 2
+
+TODO
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Files and directories
+
+=over 2
+
+=item B<Index file.> It contains the album structure: list of images,
+text, configuration. Name of index file is always taken from an argument
+of the program. In init mode (-I,--init option) index file is created
+(old one is moved to *.bak if it exists). In other modes the index file
+should exist.
+
+=item B<HTML-file.> File for html code of the album. File is always
+overwritten by the program. Specified by I<--html> option as a relative
+path is counted from location of the index file. Default name is created
+from the index file name by removing last extension (if it exists) and
+adding '.htm' instead.
+
+=item B<Image folder.> Folder for all album images and other files. It is
+specified in I<--imgdir> option as a relative path from location of the
+index file. Default value is '.'. Paths of all album images are counted
+from this folder.
+
+=item B<Image files.> In init mode (-I,--init option) program finds and
+write into the index file all image files located in the image folder
+(default) and in all subfolders (with -r, --recursive option). In the
+index file one can use any path to the image, relative to the image
+folder.
+
+=item B<Thumbnails.>There are two sizes of thumbnail images.
+Names for thumbnail images are made from image names
+by adding a prefix which can be set by options --th1_pref (for small thumbnails),
+--th2_pref (for large thumbnails). If the prefix ends with '/' then
+thumbnails are locates in a subfolder. Sizes of thumbnails are set by
+--th1_size and --th2_size options (in W1:W2:W3 format, see elsewhere).
+
+=item B<Marks.>Marks are made from a fig file located near the image
+file. Names for a mark image is made from the image name by adding a
+prefix which can be set by options --mark_pref. If the prefix ends with
+'/' then marks are locates in a subfolder.
+
+=back
+
+
+=head2 Init mode
+
+Init mode starts if B<-I,--init> option is set. In this
+mode a new index file is created with all images located in the image
+folder. Then the normal mode is started. Options:
+
+=over 2
+
+=item B<-T,--tsort>
+
+=item B<-d,--days>
+
+=item B<-r,--recursive>
+
+=item B<--init_index_head>
+
+=item B<--init_index_tail>
+
+=item B<--init_max_width>
+
+=back
+
+
+Input file syntax:
+
+Commands are started at the beginning of line with '\' symbol.
+Other lines copied without changes. Commands:
+
+=over 2
+
+=item \photo  <file> <title>     -- photo
+
+=item \photo[r|l] <file> <title> -- left/right aligned photo
+
+=item \h(1|2|3|4)[r] <title>     -- header, 'r' for ruler above it
+
+=item \toc                       -- table of contents
+
+=item \end                       -- stop processing file
+
+=item \#                         -- comment line
+
+=item \\<any text>               -- put '\' at the beginning of the line.
+
+=item \\set <name> <value>       -- set an option.
+
+=back
+
+Report bugs to <slazav\@altlinux.org>
+
+=cut

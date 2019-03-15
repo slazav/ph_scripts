@@ -1,0 +1,27 @@
+.ru {display: inline;}
+.en {display: none;}
+.caption {
+  font-style:italic;
+  min-height:1.5ex;
+  text-align:left;
+}
+.addphoto-row {
+  content:"";
+  display:block;
+  margin-left:auto;
+  margin-right:auto;
+  max-width:100%;
+  height:auto;
+  text-align:center;
+}
+.addphoto-img {
+  display: inline-block;
+  text-align: center;
+  padding:2 5px;
+  max-width:100%;
+  height:auto;
+}
+img {
+  max-width:100%;
+  height:auto;
+}
