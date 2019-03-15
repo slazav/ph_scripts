@@ -5,6 +5,9 @@ use warnings;
 use addphoto;
 use Getopt::Long qw(GetOptions);
 
+my $def_scale = '800:600:10000';
+my $def_quality = 90;
+
 ##################################################
 sub usage(){
 print qq*
@@ -15,11 +18,13 @@ Usage: $0 -i <options> <file1> <file2> ...
 
 Options:
     -h,--help           -- display help screen
-    -q,--quiet          -- be quiet
-    -s,--scale S1:S2:S3 -- size setting, default $addphoto::def_scale
-    -q,--quality <n>    -- jpeg quality, default $addphoto::def_quality
+    -v,--verbose        -- be verbose
+    -s,--scale S1:S2:S3 -- size setting, default $def_scale
+    -q,--quality <n>    -- jpeg quality, default $def_quality
     -i,--inplace        -- modify files inplace
     -d,--dryrun         -- do no changes, only show calculated sizes
+    --rm_exif           -- remove exif
+    --printres          -- print result (change flag, width, height)
 
 Image size calculations:
 - "Usual" images will be scaled to fit into S1xS1 square;
@@ -31,31 +36,105 @@ Example (for scale=800:600:10000):
 - 1280x1024 -> 800x600
 - 12800x1024 -> 5000x400
 - 12800x400 -> 10000x312
-- 8000x4000 -> no changes
+- 800x400 -> no changes
 
 Report bugs to <slazav\@altlinux.org>
 *;
 exit(1);
 }
+
 ##################################################
 
 ### get options.
 my %opts;
 GetOptions(
-  "h|help"      => \$opts{help},
-  "q|quiet"     => \$opts{quiet},
-  "s|scale=s"   => \$opts{scale},
-  "q|quality=s" => \$opts{quality},
-  "i|inplace"   => \$opts{inplace},
-  "d|dryrun"    => \$opts{dryrun},
+  "h|help"       => \$opts{help},
+  "v|verbose:1" => \$opts{verbose},
+  "s|scale=s"    => \$opts{scale},
+  "q|quality=s"  => \$opts{quality},
+  "i|inplace:1" => \$opts{inplace},
+  "d|dryrun:1"  => \$opts{dryrun},
+  "rm_exif:1"   => \$opts{rm_exif},
+  "printres:1"  => \$opts{printres},
 ) or usage();
-
 usage() if $opts{help};
-if (!$opts{inplace}){
-  usage() if @ARGV!=2;
-  addphoto::image_resize($ARGV[0], $ARGV[1], %opts);
+
+##################################################
+
+## get image size (identify from ImageMagick is needed).
+sub image_size($){
+  `identify "$_[0]"` =~/(\d+)x(\d+)/;
+  return ($1 || 0, $2 || 0);
+}
+
+## calculate rescaling factor:
+# - "Usual" images will be scaled to fit into S1xS1 square;
+# - long images will not be smaller then S2 on short edge;
+# - very long images will not be larger than S3 on long edge;
+# - small images will not be modified.
+sub image_scfactor($$$$$){
+  my ($x, $y, $m1, $m2, $m3) = @_;
+  $x=1.0*$x; $y=1.0*$y;
+
+  my $kx = $x/$m1;
+  my $ky = $y/$m1;
+
+  my $k = $kx>$ky ? $kx:$ky;
+
+  $k = $x/$m2 if $x/$k < $m2;
+  $k = $y/$m2 if $y/$k < $m2;
+
+  $k = $x/$m3 if $x/$k > $m3;
+  $k = $y/$m3 if $y/$k > $m3;
+
+  $k = 1 if $k<=1;
+  return $k;
+}
+
+## resize image
+sub image_resize($$) {
+  my ($in, $out) = @_;
+  my ($x, $y) = image_size($in);
+  my $s = $opts{scale} || $def_scale;
+  my $q = $opts{quality} || $def_quality;
+  my ($s1, $s2, $s3) = split(':', $s);
+
+  return unless $x && $y;
+  my $k = image_scfactor($x, $y, $s1, $s2, $s3);
+
+  if ($k == 1 && !$opts{rm_exif}) {
+    `cp -f "$in" "$out" 1>&2` if $out ne $in && !$opts{dryrun};
+    printf STDERR "%-20s %4d x %4d -> no changes\n", $in, $x, $y
+      if $opts{verbose};
+    print "0 $x $y\n" if $opts{printres};
+    return;
+  }
+
+  my ($xn, $yn) = (int($x/$k), int($y/$k));
+
+  unless ($opts{dryrun}){
+    if ($out ne $in){
+      `convert -geometry ${xn}x${yn} -quality "$q" "$in" "$out" || cp -f "$in" "$out" 1>&2`;
+    }
+    else{
+      `convert -geometry ${xn}x${yn} -quality "$q" "$in" "$in" ||: 1>&2`;
+    }
+    `exiv2 rm $out` if $opts{rm_exif};
+  }
+  printf STDERR "%-20s %4d x %4d -> %3d x %3d%s\n",
+    $in, $x, $y, $xn, $yn, ($opts{rm_exif}?', remove exif':'') if $opts{verbose};
+  print "1 $xn $yn\n" if $opts{printres};
+}
+
+##################################################
+
+
+if ($opts{inplace}){
+  usage() if @ARGV<1;
+  image_resize($_, $_) foreach(@ARGV);
 }
 else{
-  usage() if @ARGV<1;
-  addphoto::image_resize($_, $_, %opts) foreach(@ARGV);
+  usage() if @ARGV!=2;
+  image_resize($ARGV[0], $ARGV[1]);
 }
+
