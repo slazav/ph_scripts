@@ -192,42 +192,6 @@ sub image_scfactor($$$$$){
   return $k;
 }
 
-## resize image
-## options: scale(s1:s2:s3), verbose, dryrun, rm_exif, quality
-## return 0 if no scaling is done/needed, 1 otherwise
-sub image_resize{
-  my ($in, $out, %o) = @_;
-  my ($x, $y) = image_size($in);
-  my $s = $o{scale};
-  my $q = $o{quality};
-  my ($s1, $s2, $s3) = split(':', $s);
-
-  return unless $x && $y;
-  my $k = image_scfactor($x, $y, $s1, $s2, $s3);
-
-  if ($k == 1 && !$o{rm_exif}) {
-    printf STDERR "%-20s %4d x %4d -> no changes\n", $in, $x, $y
-      if $o{verbose};
-    `cp -f "$in" "$out" 1>&2` if $out ne $in && !$o{dryrun};
-    return (0, $x, $y);
-  }
-
-  my ($xn, $yn) = (int($x/$k), int($y/$k));
-  printf STDERR "%-20s %4d x %4d -> %3d x %3d\n", $in, $x, $y, $xn, $yn
-    if $o{verbose};
-
-  unless ($o{dryrun}){
-    if ($out ne $in){
-      `convert -geometry ${xn}x${yn} -quality "$q" "$in" "$out" || cp -f "$in" "$out" 1>&2`;
-    }
-    else{
-      `convert -geometry ${xn}x${yn} -quality "$q" "$in" "$in" ||: 1>&2`;
-    }
-    `exiv2 rm $out` if $o{rm_exif};
-  }
-  return (1, $xn, $yn);
-}
-
 ## get fig image dimensions in "pixels"
 sub fig_im_scale($$){
   my ($figpath, $img) = @_;
@@ -1156,13 +1120,16 @@ foreach(<IN>){
     my $th0file = $ph->{use_th1} ? $th1file : ($ph->{use_th2} ? $th2file : $imgfile);
 
     # get size of small thumbnail (it can be missing if use_th1==0!)
-    my ($ret, $w, $h) =
-        image_resize($ph->{imgpath}, '/dev/null', (scale=>$opts{th1_size}, dryrun=>1, verbose=>0));
+    unless ($ph->{th1_w} && $ph->{th1_h}) {
+      my $ret;
+      ($ret, $ph->{th1_w}, $ph->{th1_h}) =
+      split(/\s+/, `ph_resize --scale $opts{th1_size} --dryrun --printres $ph->{imgpath} /dev/null`);
+    }
 
     my $pswp_data='';
     if ($opts{pswp}){
       $pswp_data .= " class='pswp_image'";
-      $pswp_data .= " data-size=${w}x${h}";
+      $pswp_data .= " data-size=$ph->{th1_w}x$ph->{th1_h}";
     }
 
     print OUT "<div class=addphoto-row>\n" unless $op_tab;
@@ -1187,8 +1154,8 @@ foreach(<IN>){
       print OUT "<a href='$htmfile'>\n";
     }
     print OUT "<img src='$th0file' alt='$ph->{atitle}'\n";
-    print OUT "  width=$w height=$h class=addphoto-th></a><br>\n";
-    print OUT "<div class=addphoto-caption style='width:$w'>$ph->{title}</div>\n";
+    print OUT "  width=$ph->{th1_w} height=$ph->{th1_h} class=addphoto-th></a><br>\n";
+    print OUT "<div class=addphoto-caption style='width:$ph->{th1_w}'>$ph->{title}</div>\n";
     if ($opts{pswp}){ print OUT "</div>\n"; }
     print OUT "</div>\n";
   }
