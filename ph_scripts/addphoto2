@@ -422,6 +422,8 @@ if ($opts{init} || $opts{init_only}){
   my @list = $opts{init_tsort}? (sort {$files{$a}->{t} cmp $files{$b}->{t}} keys %files) :
                                 (sort keys %files);
 
+
+  print OUT "\\set imgdir $opts{imgdir}\n" if $opts{imgdir} ne '.';
   print OUT $opts{init_index_head};
   foreach (@list) {
     my $d = $files{$_}->{d};
