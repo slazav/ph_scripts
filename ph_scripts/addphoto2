@@ -9,6 +9,7 @@ use Digest::MD5;
 #################################################################
 ### get options 
 my %opts = (
+  verbose          => 0,
   imgdir           => '.',
   init_img_mask    => '(.jpe?g$)|(.png$)|(.tiff?$)|(.gif)$',
   init_index_head  => "<html><body>\n",
@@ -395,10 +396,10 @@ if ($opts{init} || $opts{init_only}){
       split(/\s+/, `ph_resize --scale $opts{th1_size} --dryrun --printres $path /dev/null`);
 
     # time from exif
-    my $time = get_exif($path) || '';
+    my ($time,$alt,$lat,$lon) = get_exif($path);
 
     # day only
-    my $date = (split(/\s+/, $time))[0];
+    my $date = (split(/\s+/, $time))[0] || '';
 
     # relative path
     my $p = $file; $p=~s|^$opts{basedir}/||; # relative dir
