@@ -491,15 +491,15 @@ if ($opts{cleanup}){
   my %keep;
   print STDERR "[Cleanup mode...]\n" if $opts{verbose};
   foreach my $ph (@ph) {
-    my @f = split(',', $ph);
+    my @f = @{$ph->{files}};
     # add all images
     $keep{"$imgdir$_"} = 1 foreach (@f);
 
     my ($d, $b, $e) = path_split($f[0]);
     # add html and thumbnail for this image
     $keep{"$imgdir$d$b.htm"} = 1;
-    $keep{"$imgdir$d$opts{th1_pref}$b.$e"} = 1 if $opts{th1_pref};
-    $keep{"$imgdir$d$opts{th2_pref}$b.$e"} = 1 if $opts{th2_pref};
+    $keep{"$imgdir$d$opts{th1_pref}$b$e"} = 1 if $opts{th1_pref};
+    $keep{"$imgdir$d$opts{th2_pref}$b$e"} = 1 if $opts{th2_pref};
     $keep{"$imgdir$d$opts{html_pref}$b.htm"} = 1 unless $opts{nohtml};
     # add mark files
     if ( -f "$imgdir$d$b.fig"){
@@ -514,12 +514,12 @@ if ($opts{cleanup}){
   # add index file if needed
   $keep{$opts{infile}} = 1 if $opts{imgdir} eq '.';
   $keep{"$opts{basedir}/$opts{html}"} = 1 if $opts{imgdir} eq '.';
-  $keep{"addphoto.js"} = 1;
-  $keep{"addphoto.css"} = 1;
+  $keep{"${imgdir}addphoto.js"} = 1;
+  $keep{"${imgdir}addphoto.css"} = 1;
 
   ### get files to delete
   my @del;
-  foreach(read_dir($imgdir, 1)){
+  foreach(read_dir($imgdir, 1, $imgdir)){
     push(@del, $_) unless exists($keep{$_});
   }
   exit 0 if $#del<0;
@@ -538,7 +538,7 @@ if ($opts{cleanup}){
 
   ### remove files
   if (!$opts{dryrun}){
-    printf STDERR "Files have been removed.\n", $#del+1;
+    printf STDERR "%d files have been removed.\n", $#del+1;
     unlink foreach @del;
   }
 
