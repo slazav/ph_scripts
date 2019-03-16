@@ -28,6 +28,7 @@ my %opts = (
   map_zoom         => 6,
   fig_lang         => 'ru_RU.KOI8-R',
   html_charset     => 'koi8-r',
+  html_viewport    => 1,
   mstyle           => 'aa_gif',
   fig_res          => 14.2875, # convert pixel -> fig units
 );
@@ -73,7 +74,8 @@ Getopt::Long::GetOptions(
   "map_zoom=i"      => \$opts{map_zoom},     # Map link zoom (default 6)
   "fig_lang=s"      => \$opts{fig_lang},     # fig language
   "fig_res=f"       => \$opts{fig_res},      # fig resolution
-  "html_charset=s"  => \$opts{html_charset}, # charset for html pages (not for index html)
+  "html_charset=s"  => \$opts{html_charset}, # add meta charset tag in html pages (not in index html)
+  "html_viewport:1" => \$opts{html_viewport},# add meta viewport tag in html pages (not in index html)
 ) or pod2usage(1);
 
 my $html_version = '2.2'; # changes when regenerating of html pages is needed
@@ -871,8 +873,8 @@ for (my $i=0; $i<@ph; $i++){
       <meta http-equiv="Content-Type" content="text/html; charset=$opts{html_charset}"/>*
       if $opts{html_charset};
     $head .=qq*
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">*;
-
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">*
+        if $opts{html_viewport};
 
     # make language switch
     if ($opts{lang}){
@@ -1232,11 +1234,13 @@ $0 <options> <infile>
 
 =item  "map_zoom=i"      --  Map link zoom (default 6)
 
-=item  "fig_lang=s"      --  fig language
+=item  fig_lang=s        --  fig language
 
-=item  "fig_res=f"       --  fig resolution
+=item  fig_res=f         --  fig resolution
 
-=item  "html_charset=s"  --  charset for html pages (not for index html)
+=item  html_charset=s    --  add meta charset tag in html pages (not in index html)
+
+=item  html_viewport:1   --  add meta viewport tag in html pages (not in index html)
 
 =back
 
