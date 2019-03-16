@@ -349,38 +349,36 @@ sub thmark_check($){
 #################################################################
 ## HTML messages
 
-my %msg = (
-  dat_fmt => 'Дата и время съемки: ',
-  alt_fmt => 'Высота, м: ',
-  crd_fmt => 'Координаты: ',
-  pref => '&lt;&lt; предыдущая',
-  uref => 'к оглавлению',
-  nref => 'следующая &gt;&gt;',
+my %msgs_ru = (
+  dat_fmt  => 'Дата и время съемки:',
+  alt_fmt  => 'Высота, м:',
+  crd_fmt  => 'Координаты:',
+  pref     => '&lt;&lt; предыдущая',
+  uref     => 'к оглавлению',
+  nref     => 'следующая &gt;&gt;',
   fullsize => 'полный размер',
-  sw_size => 'размер',
+  sw_size  => 'размер',
   sw_mark  => 'отметки',
 );
 
-my %msgl = (
-  dat_fmt => '<div class=ru>Дата и время: </div>'.
-             '<div class=en>Date and time: </div>',
-  alt_fmt => '<div class=ru>Высота, м: </div>'.
-             '<div class=en>Altitude, m: </div>',
-  crd_fmt => '<div class=ru>Широта и долгота: </div>'.
-             '<div class=en>Latitude and longitude: </div>',
-  pref => '<div class=ru>&lt;&lt; предыдущая</div>'.
-          '<div class=en>&lt;&lt; prev.</div>',
-  uref => '<div class=ru>к оглавлению</div>'.
-          '<div class=en>up</div>',
-  nref => '<div class=ru>следующая &gt;&gt;</div>'.
-          '<div class=en>next &gt;&gt;</div>',
-  fullsize => '<div class=ru>полный размер</div>'.
-              '<div class=en>full size</div>',
-  sw_size => '<div class=ru>размер</div>'.
-              '<div class=en>size</div>',
-  sw_mark => '<div class=ru>отметки</div>'.
-             '<div class=en>marks/div>',
+my %msgs_en = (
+  dat_fmt  => 'Date and time:',
+  alt_fmt  => 'Altitude, m:',
+  crd_fmt  => 'Latitude and longitude:',
+  pref     => '&lt;&lt; prev.',
+  uref     => 'up',
+  nref     => 'next &gt;&gt;',
+  fullsize => 'full size',
+  sw_size  => 'size',
+  sw_mark  => 'marks',
 );
+
+sub get_msg($){
+  my $id = shift;
+  return "<div class=ru>$msgs_ru{$id}</div><div class=en>$msgs_en{$id}</div>"
+      if $opts{lang};
+  return $msgs_ru{$id};
+}
 
 ## print latlon coords with or without referense to google/nakarte
 sub html_crd($$$){
@@ -397,27 +395,6 @@ sub html_crd($$$){
                     $zoom, $lat, $lon, $lat, $lon, $name, $lat, $lon);
   }
   return sprintf('%.7f %.7f', $lat, $lon);
-}
-
-## print exif data in HTML for a given filename
-sub html_exif($){
-  my $ph = shift;
-  my $ret='';
-
-  my %fw; # wrapped format strings
-  if ($opts{lang}){
-    $fw{$_} = "\n      <br/>$msgl{$_}"
-      foreach ('dat_fmt', 'alt_fmt', 'crd_fmt');
-  }
-  else {
-    $fw{$_} = "\n      <br/>$msg{$_}"
-      foreach ('dat_fmt', 'alt_fmt', 'crd_fmt');
-  }
-  $ret .= $fw{dat_fmt} . $ph->{time} if $ph->{time};
-  $ret .= $fw{alt_fmt} . $ph->{alt}  if $ph->{alt};
-  $ret .= $fw{crd_fmt} . html_crd($ph->{lat}, $ph->{lon}, $ph->{imgname})
-                   if $ph->{lat} && $ph->{lon};
-  return $ret;
 }
 
 #################################################################
@@ -869,9 +846,9 @@ for (my $i=0; $i<@ph; $i++){
     # make navigation panel
     my $nav ='';
     if ( $purl || $uurl || $nurl){
-      my $p = $opts{lang} ? $msgl{pref}:$msg{pref};
-      my $u = $opts{lang} ? $msgl{uref}:$msg{uref};
-      my $n = $opts{lang} ? $msgl{nref}:$msg{nref};
+      my $p = get_msg('pref');
+      my $u = get_msg('uref');
+      my $n = get_msg('nref');
       $p = "<a href=\"$purl\">$p</a>" if $purl;
       $u = "<a href=\"$uurl\">$u</a>" if $uurl;
       $n = "<a href=\"$nurl\">$n</a>" if $nurl;
@@ -892,7 +869,7 @@ for (my $i=0; $i<@ph; $i++){
 
     # fit-to-screen button
     if ($opts{html_screen_sw}) {
-      my $msg = $opts{lang} ? $msgl{sw_size}:$msg{sw_size};
+      my $msg = get_msg('sw_size');
       $nav .= qq*
         <div class=addphoto-btn id=addphoto-screen-sw onclick="switch_scr()">$msg</div>*;
       $sty .= qq[
@@ -904,7 +881,7 @@ for (my $i=0; $i<@ph; $i++){
 
     # switch marks button
     if ($ph->{use_mrk}){
-      my $msg = $opts{lang}? $msgl{sw_mark}:$msg{sw_mark};
+      my $msg = get_msg('sw_mark');
       $nav .= qq*
         <div class=addphoto-btn onclick="switch_mrk()">$msg</div>*;
     }
@@ -958,16 +935,21 @@ for (my $i=0; $i<@ph; $i++){
     }
 
     # info from exif
-    my $exif = html_exif($ph);
+    my $exif = '';
+    $exif .= "\n      <br/>" . get_msg('dat_fmt') . ' ' . $ph->{time} if $ph->{time};
+    $exif .= "\n      <br/>" . get_msg('alt_fmt') . ' ' . $ph->{alt}  if $ph->{alt};
+    $exif .= "\n      <br/>" . get_msg('crd_fmt') . ' ' .
+       html_crd($ph->{lat}, $ph->{lon}, $ph->{imgname}) if $ph->{lat} && $ph->{lon};
+
     $btm .= qq*
       <div class=addphoto-info>$exif
       </div>*;
 
     # full size
     if ($ph->{use_th2}) {
-      my $txt = $opts{lang}? $msgl{fullsize}:$msg{fullsize};
+      my $msg = get_msg('fullsize');
       $btm .= qq*
-      <div class=addphoto-btn><a href="$b0$e0">[$txt]</a></div>*;
+      <div class=addphoto-btn><a href="$b0$e0">[$msg]</a></div>*;
     }
 
     # wrap style settings
