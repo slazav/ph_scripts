@@ -29,6 +29,7 @@ my %opts = (
   fig_lang         => 'ru_RU.KOI8-R',
   html_charset     => 'koi8-r',
   html_viewport    => 1,
+  html_screen_sw   => 1,
   mstyle           => 'aa_gif',
   fig_res          => 14.2875, # convert pixel -> fig units
 );
@@ -76,6 +77,7 @@ Getopt::Long::GetOptions(
   "fig_res=f"       => \$opts{fig_res},      # fig resolution
   "html_charset=s"  => \$opts{html_charset}, # add meta charset tag in html pages (not in index html)
   "html_viewport:1" => \$opts{html_viewport},# add meta viewport tag in html pages (not in index html)
+  "html_screen_sw:1"=> \$opts{html_screen_sw}, # add "fit to screen" switch to html pages
 ) or pod2usage(1);
 
 my $html_version = '2.2'; # changes when regenerating of html pages is needed
@@ -838,13 +840,18 @@ for (my $i=0; $i<@ph; $i++){
   my ($key, $oldkey);
   if (!$opts{nohtml}){
     # make new key
+    # all options which affect html pages should be here
     $key = Digest::MD5::md5_hex(join("\n",(
       $imgref, $w, $h, @files,
       $ph->{title}, $purl, $uurl, $nurl,
       ($ph->{use_mrk} ? $opts{mstyle}:''),
       $ph->{use_th1}, $ph->{use_th2},
       $opts{map_ref} || '', $opts{map_zoom},
-      $opts{lang} || '', $html_version)));
+      $opts{lang} || '',
+      $opts{html_charset} || '',
+      $opts{html_viewport} || '',
+      $opts{html_screen_sw} || '',
+      $html_version)));
     # get old key
     if (open KEY, $ph->{htmpath}) {
       while (readline KEY){
@@ -864,12 +871,17 @@ for (my $i=0; $i<@ph; $i++){
     my $sty=qq*
       a {text-decoration:none;}
       .img1 {max-width:100%; height:auto;}
-      .img2 {max-width:''; height:auto;}*;
+      .img2 {max-width:''; height:auto;}
+      .addphoto-nav {content:'';display:block;width:100%;
+                     font: bold 10pt sans-serif;}
+      .addphoto-btn {padding:2 10px; display:inline-block;}*;
+
     my $scr="";
     my $init="";
     my $top="";
     my $btm="";
-    my $head .=qq*
+    my $head="";
+    $head .=qq*
       <meta http-equiv="Content-Type" content="text/html; charset=$opts{html_charset}"/>*
       if $opts{html_charset};
     $head .=qq*
@@ -909,38 +921,26 @@ for (my $i=0; $i<@ph; $i++){
 
     # make navigation panel
     if ( $purl || $uurl || $nurl){
-      my ($p,$u,$n,$ss);
+      my ($p,$u,$n);
       if ($opts{lang}){
         $p = $msgl{pref};
         $u = $msgl{uref};
         $n = $msgl{nref};
-        $ss = $msgl{scrsize};
       }
       else {
         $p = $msg{pref};
         $u = $msg{uref};
         $n = $msg{nref};
-        $ss = $msg{scrsize};
       }
       $p = "<a href=\"$purl\">$p</a>" if $purl;
       $u = "<a href=\"$uurl\">$u</a>" if $uurl;
       $n = "<a href=\"$nurl\">$n</a>" if $nurl;
       $top .= qq*
       <div class=addphoto-nav>
-        <div class=addphoto-pbtn>$p</div>
-        <div class=addphoto-ubtn>$u</div>
-        <div class=addphoto-nbtn>$n</div>
-        <br><div class=addphoto-tbtn onclick="switch_scr()">$ss</div>
+        <div class=addphoto-btn>$p</div>
+        <div class=addphoto-btn>$u</div>
+        <div class=addphoto-btn>$n</div>
       </div>*;
-      # style
-      $sty .= qq*
-        .addphoto-nav {content:'';display:block;width:100%;
-                       font: bold 10pt sans-serif;}
-        .addphoto-pbtn,.addphoto-ubtn,.addphoto-nbtn {
-                       padding:2 10px; display:inline-block;}
-        .addphoto-tbtn { display: none; color:blue; cursor: pointer;}
-        \@media screen and (max-width: ${w}px) {
-          .addphoto-tbtn { display: inline;} }*;
       # navigation links in the head
       $head .= qq*
       <link rel="top" href="$uurl">* if $uurl;
@@ -948,6 +948,20 @@ for (my $i=0; $i<@ph; $i++){
       <link rel="previous" href="$purl">* if $purl;
       $head .= qq*
       <link rel="next" href="$nurl">* if $nurl;
+    }
+
+    if ($opts{html_screen_sw}) {
+      my $ss;
+      if ($opts{lang}){ $ss = $msgl{scrsize}; }
+      else { $ss = $msg{scrsize}; }
+      $top .= qq*
+      <div class=addphoto-nav>
+        <div class=addphoto-btn id=addphoto-screen-sw onclick="switch_scr()">$ss</div>
+      </div>*;
+      $sty .= qq*
+        #addphoto-screen-sw { display: none; color:blue; cursor: pointer;}
+        \@media screen and (max-width: ${w}px) {
+          #addphoto-screen-sw { display: inline;} }*;
       $head .= qq*
       <script>
         function switch_scr(){
@@ -1241,6 +1255,8 @@ $0 <options> <infile>
 =item  html_charset=s    --  add meta charset tag in html pages (not in index html)
 
 =item  html_viewport:1   --  add meta viewport tag in html pages (not in index html)
+
+=item  html_screen_sw:1  --  add "fit to screen" switch to html pages
 
 =back
 
