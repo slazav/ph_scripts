@@ -82,7 +82,7 @@ Getopt::Long::GetOptions(
   "html_arrows:1"   => \$opts{html_arrows},  # add left/right arrow navigation to html pages
 ) or pod2usage(1);
 
-my $html_version = '2.2'; # changes when regenerating of html pages is needed
+my $html_version = '2.3'; # changes when regenerating of html pages is needed
 
 
 pod2usage(-exitval => 0, -verbose => 2) if $opts{help};
@@ -347,48 +347,7 @@ sub thmark_check($){
 }
 
 #################################################################
-## HTML and JS code
-
-my $mark_script = qq*
-    function update_vis(){
-      document.getElementById("marks").style.visibility=
-        document.forms[0].elements[0].checked?'visible':'hidden'}
-    function sw_marks(){
-      document.forms[0].elements[0].checked=
-        !document.forms[0].elements[0].checked}*;
-
-my $lang_script=qq*
-    var langs=['ru', 'en'];
-    var lang_def='ru';
-    function lang_set(lang){
-      document.cookie = "lang=" + lang + "; path=/";
-      for (var i=0; i<langs.length; i++){
-        document.getElementById("lang_"+langs[i]).style.fontWeight=
-          (langs[i]==lang) ? 'bold':'normal';
-        var els=document.getElementsByClassName(langs[i]);
-        for (var j=0; j<els.length; j++){
-          els[j].style.display = (langs[i]==lang) ? 'inline':'none'; }
-      }
-    }
-    // set language from document url
-    function lang_init(){
-      var cookie = document.cookie;
-      var i1 = cookie.indexOf(" lang=");
-      if (i1 == -1) { i1 = cookie.indexOf("lang="); }
-      if (i1 == -1) {lang_set(lang_def);}
-      else {
-        i1 = cookie.indexOf("=", i1) + 1;
-        var i2 = cookie.indexOf(";", i1);
-        if (i2 == -1) { i2 = cookie.length; }
-        lang_set(cookie.substring(i1,i2));
-      }
-    }*;
-
-my $html_lang_switch = qq*
-  <div align=right><font color=blue style='cursor: pointer;'>
-    <u><span class="ru_control" id=lang_ru onclick="lang_set('ru')">ru</span></u>
-    <u><span class="en_control" id=lang_en onclick="lang_set('en')">en</span></u>
-  </font></div>*;
+## HTML messages
 
 my %msg = (
   dat_fmt => 'Дата и время съемки: ',
@@ -397,9 +356,9 @@ my %msg = (
   pref => '&lt;&lt; предыдущая',
   uref => 'к оглавлению',
   nref => 'следующая &gt;&gt;',
-  mark_sw  => 'для отключения пометок щелкните мышью по картинке',
   fullsize => 'полный размер',
-  scrsize => 'к размеру экрана',
+  sw_size => 'размер',
+  sw_mark  => 'отметки',
 );
 
 my %msgl = (
@@ -415,12 +374,12 @@ my %msgl = (
           '<div class=en>up</div>',
   nref => '<div class=ru>следующая &gt;&gt;</div>'.
           '<div class=en>next &gt;&gt;</div>',
-  mark_sw => '<div class=ru>для отключения пометок щелкните мышью по картинке</div>'.
-             '<div class=en>click the picture to switch marks</div>',
   fullsize => '<div class=ru>полный размер</div>'.
               '<div class=en>full size</div>',
-  scrsize => '<div class=ru>к размеру экрана</div>'.
-              '<div class=en>fit to screen</div>',
+  sw_size => '<div class=ru>размер</div>'.
+              '<div class=en>size</div>',
+  sw_mark => '<div class=ru>отметки</div>'.
+             '<div class=en>marks/div>',
 );
 
 ## print latlon coords with or without referense to google/nakarte
@@ -613,8 +572,8 @@ if ($opts{cleanup}){
   # add index file if needed
   $keep{$opts{infile}} = 1 if $opts{imgdir} eq '.';
   $keep{"$opts{basedir}/$opts{html}"} = 1 if $opts{imgdir} eq '.';
-  $keep{"lang.js"} = 1;
-  $keep{"mark.js"} = 1;
+  $keep{"addphoto.js"} = 1;
+  $keep{"addphoto.css"} = 1;
 
   ### get files to delete
   my @del;
@@ -694,6 +653,7 @@ for (my $i=0; $i<@ph; $i++){
 
   ## do we want to create marks?
   $ph->{use_mrk} = -r $ph->{figpath} && $opts{mark_pref};
+  $opts{_use_mrk} = 1 if $ph->{use_mrk};
 
   ############################################################
   ## update thumbnail image:
@@ -839,7 +799,7 @@ for (my $i=0; $i<@ph; $i++){
   my $h      = $ph->{use_th2} ? $ph->{th2_h}:$ph->{img_h};
 
   # build new key, extract old one from file
-  my ($key, $oldkey);
+  my ($key, $oldkey) = ('','');
   if (!$opts{nohtml}){
     # make new key
     # all options which affect html pages should be here
@@ -870,44 +830,32 @@ for (my $i=0; $i<@ph; $i++){
   if (!$opts{nohtml} && $key ne $oldkey){
     print STDERR "  creating html file: $ph->{htmpath}\n" if $opts{verbose};
 
-    # default values for html style, scripts, top and bottom text
-    my $sty=qq*
-      a {text-decoration:none;}
-      .img1 {max-width:100%; height:auto;}
-      .img2 {max-width:''; height:auto;}
-      .addphoto-nav {content:'';display:block;width:100%;
-                     font: bold 10pt sans-serif;}
-      .addphoto-btn {padding:2 10px; display:inline-block;}*;
-
     my $scr="";
     my $init="";
     my $top="";
     my $btm="";
     my $head="";
+    my $sty="";
     $head .=qq*
       <meta http-equiv="Content-Type" content="text/html; charset=$opts{html_charset}"/>*
       if $opts{html_charset};
     $head .=qq*
       <meta name="viewport" content="width=device-width, initial-scale=1.0">*
         if $opts{html_viewport};
+    $head .=qq*
+      <link href="$ph->{img2imgdir}addphoto.css" rel="stylesheet"/>*;
+    $head .=qq*
+      <script type='text/JavaScript' src='$ph->{img2imgdir}addphoto.js'></script>*
+      if $opts{lang} || $opts{html_screen_sw} || $ph->{use_mrk} || $opts{html_arrows};
 
     # make language switch
     if ($opts{lang}){
-      $top  .= $html_lang_switch;
       $init .= ' onload="lang_init()"';
-      my $s="${imgdir}lang.js";
-      unless (-s $s){
-        open  O, ">$s" or die "Can't open $s: $!\n";
-        print O $lang_script;
-        close O;
-      }
-      my $langurl = $ph->{img2imgdir} . 'lang.js';
-      $scr  .= "
-        <script type='text/JavaScript' src='$langurl'></script>";
-      $sty  .= qq*
-        .ru_control,.en_control {color:blue;cursor:pointer; }
-        .ru {display:inline;}
-        .en {display:none;}*;
+      $top  .= qq*
+        <div align=right><font color=blue style='cursor: pointer;'>
+          <u><span class="ru_control" id=lang_ru onclick="lang_set('ru')">ru</span></u>
+          <u><span class="en_control" id=lang_en onclick="lang_set('en')">en</span></u>
+        </font></div>*;
     }
 
     # make title
@@ -915,121 +863,68 @@ for (my $i=0; $i<@ph; $i++){
       $head .= qq*
       <title>$ph->{atitle}</title>*;
       $btm .= qq*
-      <div class=title>$ph->{title}</div>*;
-      $sty .= qq*
-        .title { font: 16pt sans-serif;
-                margin: 0px; padding-bottom: 20px;
-                border-bottom: 1px solid #E0E0E0; width: 100%}*;
+      <div class=addphoto-title>$ph->{title}</div>*;
     }
 
     # make navigation panel
+    my $nav ='';
     if ( $purl || $uurl || $nurl){
-      my ($p,$u,$n);
-      if ($opts{lang}){
-        $p = $msgl{pref};
-        $u = $msgl{uref};
-        $n = $msgl{nref};
-      }
-      else {
-        $p = $msg{pref};
-        $u = $msg{uref};
-        $n = $msg{nref};
-      }
+      my $p = $opts{lang} ? $msgl{pref}:$msg{pref};
+      my $u = $opts{lang} ? $msgl{uref}:$msg{uref};
+      my $n = $opts{lang} ? $msgl{nref}:$msg{nref};
       $p = "<a href=\"$purl\">$p</a>" if $purl;
       $u = "<a href=\"$uurl\">$u</a>" if $uurl;
       $n = "<a href=\"$nurl\">$n</a>" if $nurl;
-      $top .= qq*
-      <div class=addphoto-nav>
-        <div class=addphoto-btn>$p</div>
-        <div class=addphoto-btn>$u</div>
-        <div class=addphoto-btn>$n</div>
-      </div>*;
-      # navigation links in the head
-      $head .= qq*
-      <link rel="top" href="$uurl">* if $uurl;
-      $head .= qq*
-      <link rel="previous" href="$purl">* if $purl;
-      $head .= qq*
-      <link rel="next" href="$nurl">* if $nurl;
+      $nav .= qq*
+      <div class=addphoto-btn>$p</div>
+      <div class=addphoto-btn>$u</div>
+      <div class=addphoto-btn>$n</div>*;
     }
+    # navigation links in the head
+    $head .= qq*
+    <link rel="top" href="$uurl">* if $uurl;
+    $head .= qq*
+    <link rel="previous" href="$purl">* if $purl;
+    $head .= qq*
+    <link rel="next" href="$nurl">* if $nurl;
 
-    # fit to screen button
+    $nav .= "\n    <br>";
+
+    # fit-to-screen button
     if ($opts{html_screen_sw}) {
-      my $ss;
-      if ($opts{lang}){ $ss = $msgl{scrsize}; }
-      else { $ss = $msg{scrsize}; }
-      $top .= qq*
-      <div class=addphoto-nav>
-        <div class=addphoto-btn id=addphoto-screen-sw onclick="switch_scr()">$ss</div>
-      </div>*;
-      $sty .= qq*
-        #addphoto-screen-sw { display: none; color:blue; cursor: pointer;}
+      my $msg = $opts{lang} ? $msgl{sw_size}:$msg{sw_size};
+      $nav .= qq*
+        <div class=addphoto-btn id=addphoto-screen-sw onclick="switch_scr()">$msg</div>*;
+      $sty .= qq[
+        /* fit-to-screen button */
+        #addphoto-screen-sw {display: none;}
         \@media screen and (max-width: ${w}px) {
-          #addphoto-screen-sw { display: inline;} }*;
-      $head .= qq*
-      <script>
-        function switch_scr(){
-          image = document.getElementById("image");
-          if (!image) {return;}
-          cn = (image.className=='img1' ? 'img2':'img1');
-          image.className = cn;
-          marks = document.getElementById("marks");
-          if (!marks) {return;}
-          marks.className = cn;
-        }
-      </script>*;
+          #addphoto-screen-sw { display: inline;} }];
     }
 
-    # arrow navigation
-    if ($opts{html_arrows}) {
-      $head .= qq*
-      <script>
-        function process_key(event){
-          if (event.code == 'ArrowRight' ||
-              event.code == 'ArrowLeft') {
-            var links = document.getElementsByTagName("link");
-            for (var i = 0; i < links.length; i++) {
-              if (event.code == 'ArrowRight' && links[i].rel == "next") {
-                window.location.href = links[i].href; }
-              if (event.code == 'ArrowLeft' && links[i].rel == "previous") {
-                window.location.href = links[i].href; }
-            }
-          }
-        }
-        document.addEventListener('keydown', process_key);
-      </script>*;
+    # switch marks button
+    if ($ph->{use_mrk}){
+      my $msg = $opts{lang}? $msgl{sw_mark}:$msg{sw_mark};
+      $nav .= qq*
+        <div class=addphoto-btn onclick="switch_mrk()">$msg</div>*;
     }
+    $top .= qq*
+    <div class=addphoto-nav>$nav
+    </div>*;
 
     # main image
     my $main=qq*
-      <img id=image class=img1 src='$imgref' alt='$ph->{atitle}'>*;
-    $sty .= qq*;
-        #image {width: 2805px; height:auto;}*;
+      <img id=image class=img1 style='width:${w}px;height:auto;'
+           src='$imgref' alt='$ph->{atitle}'>*;
 
-    # marks + javascript for switching marks
+    # marks overlay
     if ($ph->{use_mrk}){
-      my $s="${imgdir}mark.js";
-      unless (-s $s){
-        open O, "> $s" or die "Can't open $s: $!\n";
-        print O $mark_script;
-        close O;
-      }
-      my $markurl = $ph->{img2imgdir} . "mark.js";
-      $scr .= "
-        <script type='text/JavaScript' src='$markurl'></script>";
-      $sty .= qq*
-        #marks { position: absolute; left: 0px; top: 0px; width: ${w}px; height:auto; visibility:visible; }
-        .mrk { font: 8pt sans-serif; text-align: right; }*;
-      my $msg_mark = $opts{lang}? $msgl{mark_sw}:$msg{mark_sw};
-      $btm .= qq*
-      <table align=right class=mrk><tr><td><form>
-        $msg_mark
-        <input type="checkbox" checked onclick="update_vis()">
-        </form></td></tr></table>*;
       $main = qq*
-      <div style="position: relative;" onclick="sw_marks(); update_vis()">
-        <img id=image class=img1 src='$imgref' alt='$ph->{atitle}'>
-        <img id=marks class=img1 src='$ph->{mrkname}'>
+      <div style="position: relative;" onclick="switch_mrk();">
+        <img id=image class=img1 style='width:${w}px;height:auto;'
+             src='$imgref' alt='$ph->{atitle}'>
+        <img id=marks class=img1 style='width:${w}px;height:auto;'
+             src='$ph->{mrkname}'>
       </div>*;
     }
 
@@ -1045,8 +940,7 @@ for (my $i=0; $i<@ph; $i++){
               i<=nv?'visible':'hidden'}}
       </script>*;
       $sty .= qq*
-        #img0 { position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px; }
-        .mrk { font: 8pt sans-serif; text-align: right; }*;
+        #img0 { position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px; }*;
 
       $main = qq*
       <div style="position: relative; height: ${h}px;"
@@ -1066,18 +960,14 @@ for (my $i=0; $i<@ph; $i++){
     # info from exif
     my $exif = html_exif($ph);
     $btm .= qq*
-      <div class=exif>$exif
+      <div class=addphoto-info>$exif
       </div>*;
-    $sty .= qq*
-        .exif { font: bold 8pt sans-serif;}*;
 
     # full size
     if ($ph->{use_th2}) {
       my $txt = $opts{lang}? $msgl{fullsize}:$msg{fullsize};
       $btm .= qq*
-      <div class=fullsize><a href="$b0$e0">[$txt]</a></div>*;
-      $sty .= qq*
-       .fullsize { font: bold 8pt sans-serif;}*;
+      <div class=addphoto-btn><a href="$b0$e0">[$txt]</a></div>*;
     }
 
     # wrap style settings
@@ -1099,6 +989,155 @@ for (my $i=0; $i<@ph; $i++){
   }
 }
 
+#################################################################
+#################################################################
+### Write common files: addphoto.js, addphoto.css
+
+open STY, "> ${imgdir}addphoto.css" or die
+  "can't open file: ${imgdir}addphoto.css: $!\n";
+print STY qq[
+/* common decorations */
+a {text-decoration:none;}
+.img1 {max-width:100%; height:auto;}
+.img2 {max-width:''; height:auto;}
+.addphoto-nav {
+  content:'';
+  display:block;
+  width:100%;
+}
+.addphoto-btn {
+  color:blue;cursor:pointer;
+  font: bold 10pt sans-serif;
+  padding:2 10px;
+  display:inline-block;
+}
+.addphoto-title {
+  font: 16pt sans-serif;
+  margin: 0px; padding-bottom: 20px;
+  border-bottom: 1px solid #E0E0E0;
+  width: 100%;
+}
+.addphoto-info {
+  font: bold 8pt sans-serif;
+}
+/* marks layer */
+#marks {
+  position:absolute;
+  left: 0px; top: 0px;
+  visibility:visible;
+}
+.mrk {
+  font: 8pt sans-serif;
+  text-align: right;
+}
+/* for index html*/
+.addphoto-caption {
+  font-style:italic;
+  min-height:1.5ex;
+  text-align:left;
+}
+.addphoto-row { content:"";
+  display:block;
+  margin-left:auto;
+  margin-right:auto;
+  max-width:100%;
+  height:auto;
+  text-align:center;
+}
+.addphoto-img {
+  display: inline-block;
+  text-align: center;
+  padding:2 5px;
+  max-width:100%;
+  height:auto;
+}
+.addphoto-th {
+  max-width:100%;
+  height:auto;
+}
+];
+
+print STY qq[
+/* Language control (see opts{lang}) */
+.ru_control,.en_control {color:blue;cursor:pointer; }
+.ru {display:inline;}
+.en {display:none;}
+] if $opts{lang};
+close STY;
+
+if (!$opts{nohtml} && (
+      $opts{lang} ||
+      $opts{html_screen_sw} ||
+      $opts{_use_mrk} ||
+      $opts{html_arrows} )) {
+  open JS, "> ${imgdir}addphoto.js" or die
+    "can't open file: ${imgdir}addphoto.js: $!\n";
+
+  print JS qq*
+    var langs=['ru', 'en'];
+    var lang_def='ru';
+    function lang_set(lang){
+      document.cookie = "lang=" + lang + "; path=/";
+      for (var i=0; i<langs.length; i++){
+        document.getElementById("lang_"+langs[i]).style.fontWeight=
+          (langs[i]==lang) ? 'bold':'normal';
+        var els=document.getElementsByClassName(langs[i]);
+        for (var j=0; j<els.length; j++){
+          els[j].style.display = (langs[i]==lang) ? 'inline':'none'; }
+      }
+    }
+    // set language from document url
+    function lang_init(){
+      var cookie = document.cookie;
+      var i1 = cookie.indexOf(" lang=");
+      if (i1 == -1) { i1 = cookie.indexOf("lang="); }
+      if (i1 == -1) {lang_set(lang_def);}
+      else {
+        i1 = cookie.indexOf("=", i1) + 1;
+        var i2 = cookie.indexOf(";", i1);
+        if (i2 == -1) { i2 = cookie.length; }
+        lang_set(cookie.substring(i1,i2));
+      }
+    }* if $opts{lang};
+
+  print JS qq*
+    function switch_scr(){
+      var image = document.getElementById("image");
+      if (!image) {return;}
+      var cn = (image.className=='img1' ? 'img2':'img1');
+      image.className = cn;
+      var marks = document.getElementById("marks");
+      if (!marks) {return;}
+      marks.className = cn;
+    }* if $opts{html_screen_sw};
+
+  print JS qq*
+    function switch_mrk(){
+      var e = document.getElementById("marks");
+      if (!marks) {return;}
+      e.style.visibility = e.style.visibility=='hidden' ? 'visible':'hidden';
+    }* if $opts{_use_mrk};
+
+  print JS qq*
+    function process_key(event){
+      if (event.code == 'ArrowRight' ||
+          event.code == 'ArrowLeft') {
+        var links = document.getElementsByTagName("link");
+        for (var i = 0; i < links.length; i++) {
+          if (event.code == 'ArrowRight' && links[i].rel == "next") {
+            window.location.href = links[i].href; }
+          if (event.code == 'ArrowLeft' && links[i].rel == "previous") {
+            window.location.href = links[i].href; }
+        }
+      }
+    }
+    document.addEventListener('keydown', process_key);*
+      if $opts{html_arrows};
+
+  close JS;
+}
+
+#################################################################
 #################################################################
 ### create index html
 seek IN, 0, 0;
@@ -1166,8 +1205,8 @@ foreach(<IN>){
       print OUT "<a href='$htmfile'>\n";
     }
     print OUT "<img src='$th0file' alt='$ph->{atitle}'\n";
-    print OUT "  width=$w height=$h></a><br>\n";
-    print OUT "<div class='caption' style='width:$w'>$ph->{title}</div>\n";
+    print OUT "  width=$w height=$h class=addphoto-th></a><br>\n";
+    print OUT "<div class=addphoto-caption style='width:$w'>$ph->{title}</div>\n";
     if ($opts{pswp}){ print OUT "</div>\n"; }
     print OUT "</div>\n";
   }
@@ -1363,6 +1402,8 @@ Other lines copied without changes. Commands:
 =item \photo  <file> <title>     -- photo
 
 =item \photo[r|l] <file> <title> -- left/right aligned photo
+
+=item \photo  <file1>,<file2>,... <title>     -- multiple photos on a single page
 
 =item \h(1|2|3|4)[r] <title>     -- header, 'r' for ruler above it
 
