@@ -324,8 +324,7 @@ sub get_exif{
 
 
 #################################################################
-#### THUMBNAIL MARKS and KEYS functions
-
+#### THUMBNAIL MARKS
 ## Thumbnail images can is marked with red dot if there are
 ## some marks on the image. The mark is also kept in the jpeg comment
 ## These two functions can add and check mark. For remothing mark
@@ -339,16 +338,6 @@ sub thmark_add($){
 sub thmark_check($){
   my $f=shift;
   return -r $f && `exiv2 -pc "$f" 2>/dev/null` =~ /<marked>/;
-}
-
-# Key is used to check do we need to update html-file
-# It is md5_hex sum of all parameters used for html-file
-# generation
-sub key_read($){
-  my $fh;
-  return '' if ! open $fh, $_[0];
-  while (readline $fh){return $1 if m|<!--KEY:([a-fA-F\d]*)-->|; }
-  return '';
 }
 
 #################################################################
@@ -835,7 +824,7 @@ for (my $i=0; $i<@ph; $i++){
   }
 
   ############################################################
-  ## Create html if needed.
+  ## Create html page if needed.
   ## We use "key" to check that html-file is up-to-date.
 
   # image reference for html
@@ -843,8 +832,10 @@ for (my $i=0; $i<@ph; $i++){
   my $w      = $ph->{use_th2} ? $ph->{th2_w}:$ph->{img_w};
   my $h      = $ph->{use_th2} ? $ph->{th2_h}:$ph->{img_h};
 
+  # build new key, extract old one from file
   my ($key, $oldkey);
   if (!$opts{nohtml}){
+    # make new key
     $key = Digest::MD5::md5_hex(join("\n",(
       $imgref, $w, $h, @files,
       $ph->{title}, $purl, $uurl, $nurl,
@@ -852,7 +843,16 @@ for (my $i=0; $i<@ph; $i++){
       $ph->{use_th1}, $ph->{use_th2},
       $opts{map_ref} || '', $opts{map_zoom},
       $opts{lang} || '', $html_version)));
-    $oldkey = key_read($ph->{htmpath});
+    # get old key
+    if (open KEY, $ph->{htmpath}) {
+      while (readline KEY){
+        if (m|<!--KEY:([a-fA-F\d]*)-->|){
+          $oldkey = $1 if m|<!--KEY:([a-fA-F\d]*)-->|;
+          last;
+        }
+      }
+      close KEY;
+    }
   }
 
   if (!$opts{nohtml} && $key ne $oldkey){
@@ -958,7 +958,6 @@ for (my $i=0; $i<@ph; $i++){
           marks.className = cn;
         }
       </script>*;
-
     }
 
     # main image
@@ -1161,20 +1160,83 @@ __END__
 
 addphoto2 -- create html photoalbums from text templates
 
-
 =head1 SYNOPSIS
 
-=over 2
-
-=item $0 <options> <infile>
-
-=back
+$0 <options> <infile>
 
 =head1 OPTIONS
 
 =over 2
 
-TODO
+=item  "h|help"           -- print help message
+
+=item  "v|verbose:1"      -- be verbose
+
+=item  "D|imgdir=s"       -- image dir (relative to index file location, default .)
+
+=item  "H|html=s"         -- html file (relative to index file location)
+
+=item  "html_filter=s"    -- filter for index html
+
+=item  "html_stdout:1"    -- print index html to stdout instead of writing to file. html option is still needed.
+
+=item  "I|init"           -- INIT MODE: create index file
+
+=item  "J|init_only"      -- create index file and exit
+
+=item  "T|init_tsort:1"   -- init mode: sort photos by time
+
+=item  "d|init_days:1"    -- init mode: add day headers
+
+=item  "r|init_rec:1"     -- init mode: find files recursively
+
+=item  "w|init_width=i"   -- init mode: max page width
+
+=item  "init_img_mask=s"  -- init mode: mask for finding images
+
+=item  "init_index_head=s" -- init mode: head for the index file
+
+=item  "init_index_tail=s" -- init mode: tail for the index file
+
+=item  "C|cleanup"       --  CLEANUP MODE: remove unused files and exit
+
+=item  "f|force:1"       --  cleanup mode: do not ask before deleting files
+
+=item  "th1_pref=s"      --  Small thumbnail prefix (can end with /), empty for no thumbnails
+
+=item  "th1_size=s"      --  Small thumbnail size (S1:S2:S3, see elsewhere)
+
+=item  "th1_rm_exif:1"   --  Remove exif-data from small thumbnails (default)
+
+=item  "th2_pref=s"      --  Large thumbnail prefix (can and with /), empty for no thumbnails
+
+=item  "th2_size=s"      --  Large thumbnail size (S1:S2:S3, see elsewhere)
+
+=item  "th2_rm_exif:1"   --  Remove exif-data from large thumbnails (default)
+
+=item  "mark_pref=s"     --  Image marks prefix (can and with /), empty for no marks
+
+=item  "html_pref=s"     --  Image marks prefix (can and with /), empty for no marks
+
+=item  "nohtml:1"        --  Do not generate hmtl pages for images
+
+=item  "mstyle=s"        --  Mark style
+
+=item  "l|lang:1"        --  Language support
+
+=item  "pswp:1"          --  PhotoSwipe support
+
+=item  "quality=i"       --  Jpeg quality for thumbnails (default 90)
+
+=item  "map_ref=s"       --  Map link style (gmap, nakarte)
+
+=item  "map_zoom=i"      --  Map link zoom (default 6)
+
+=item  "fig_lang=s"      --  fig language
+
+=item  "fig_res=f"       --  fig resolution
+
+=item  "html_charset=s"  --  charset for html pages (not for index html)
 
 =back
 
@@ -1192,7 +1254,7 @@ should exist.
 
 =item B<HTML-file.> File for html code of the album. File is always
 overwritten by the program. Specified by I<--html> option as a relative
-path is counted from location of the index file. Default name is created
+path counted from location of the index file. Default name is created
 from the index file name by removing last extension (if it exists) and
 adding '.htm' instead.
 
