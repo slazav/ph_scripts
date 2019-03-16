@@ -793,10 +793,10 @@ for (my $i=0; $i<@ph; $i++){
     if ($opts{lang}){
       $init .= ' onload="lang_init()"';
       $top  .= qq*
-        <div align=right><font color=blue style='cursor: pointer;'>
-          <u><span class="ru_control" id=lang_ru onclick="lang_set('ru')">ru</span></u>
-          <u><span class="en_control" id=lang_en onclick="lang_set('en')">en</span></u>
-        </font></div>*;
+        <div align=right>
+          <span class="ru_control" id=lang_ru onclick="lang_set('ru')">ru</span>
+          <span class="en_control" id=lang_en onclick="lang_set('en')">en</span>
+        </div>*;
     }
 
     # make title
@@ -971,10 +971,6 @@ a {text-decoration:none;}
   position:absolute;
   left: 0px; top: 0px;
   visibility:visible;
-}
-.mrk {
-  font: 8pt sans-serif;
-  text-align: right;
 }
 /* for index html*/
 .addphoto-caption {
