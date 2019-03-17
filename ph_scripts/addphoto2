@@ -982,17 +982,33 @@ a {text-decoration:none;}
   min-height:1.5ex;
   text-align:left;
 }
-.addphoto-row { content:"";
+.addphoto-row {
+  content:"";
   display:block;
+  vertical-align: top;
   margin-left:auto;
   margin-right:auto;
   max-width:100%;
   height:auto;
   text-align:center;
 }
-.addphoto-img {
+.addphoto-img-center {
   display: inline-block;
   text-align: center;
+  padding:2 5px;
+  max-width:100%;
+  height:auto;
+}
+.addphoto-img-left {
+  display: inline-block;
+  float: left;
+  padding:2 5px;
+  max-width:100%;
+  height:auto;
+}
+.addphoto-img-right {
+  display: inline-block;
+  float: right;
   padding:2 5px;
   max-width:100%;
   height:auto;
@@ -1087,7 +1103,7 @@ if (!$opts{nohtml} && (
 #################################################################
 ### create index html
 seek IN, 0, 0;
-my $op_tab=0;
+my $in_row=0;
 my $np=0;
 my $nh=0;
 
@@ -1132,9 +1148,15 @@ foreach(<IN>){
       $pswp_data .= " data-size=$ph->{th1_w}x$ph->{th1_h}";
     }
 
-    print OUT "<div class=addphoto-row>\n" unless $op_tab;
-    $op_tab=1;
-    print OUT "<div class=addphoto-img><a name='ph$np'></a>\n";
+    # open a row only if align = center
+    if ($ph->{align} eq 'center') {
+      print OUT "<div class=addphoto-row>\n" unless $in_row;
+      $in_row=1;
+    } else {
+      print OUT "</div>\n" if $in_row; # close row
+      $in_row=0;
+    }
+    print OUT "<div class=addphoto-img-$ph->{align}><a name='ph$np'></a>\n";
 
     # collect all information for pswp in <div>
     if ($opts{pswp}){
@@ -1160,8 +1182,8 @@ foreach(<IN>){
     print OUT "</div>\n";
   }
   else{
-    print OUT "</div>\n" if $op_tab; # close row
-    $op_tab=0;
+    print OUT "</div>\n" if $in_row; # close row
+    $in_row=0;
     if (/$re{head}/){ # \h commands
       $nh++;
       my ($depth, $title) = ($hh[$nh-1]->{depth}, $hh[$nh-1]->{title});
@@ -1178,7 +1200,7 @@ foreach(<IN>){
     else{ print OUT $_; }
   }
 }
-print OUT "</div>\n" if $op_tab; # close row
+print OUT "</div>\n" if $in_row; # close row
 close OUT;
 print STDERR "[Done: $np photos, $nh headers]\n" if $opts{verbose};
 
