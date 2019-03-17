@@ -224,13 +224,6 @@ sub fig_im_scale($$){
 #################################################################
 #### HTML writing functions
 
-## remove html tags from text, for html alt atribute
-sub rem_html($){
-  my $t=shift;
-  $t=~s/<[^>]*>//g;
-  $t=~s/[<>\']//g;
-  return $t;
-}
 
 ## create table of contents
 ## input: array of hashes with fields 'depth' and 'title'
@@ -561,8 +554,10 @@ print STDERR "[Updating files...]\n" if $opts{verbose};
 for (my $i=0; $i<@ph; $i++){
   my $ph = $ph[$i];
 
-  $ph->{title}  =~ s/\"/\\\"/g;
-  $ph->{atitle} = rem_html($ph->{title});
+  # remove html tags from text, for html alt atribute
+  $ph->{atitle} = $ph->{title};
+  $ph->{atitle}=~s/<[^>]*>//g;
+  $ph->{atitle}=~s/[<>\']//g;
 
   my @files = @{$ph->{files}};
   foreach (@files) {die "error: can't find file: $_\n" unless -f "$imgdir$_";}
