@@ -60,6 +60,7 @@ Getopt::Long::GetOptions(
   "init_index_tail=s"  => \$opts{init_index_tail}, # init mode: tail for the index file
   "C|cleanup"       => \$opts{cleanup},      # CLEANUP MODE: remove unused files and exit
   "f|force:1"       => \$opts{force},        # cleanup mode: do not ask before deleting files
+  "dryrun:1"        => \$opts{dryrun},       # cleanup mode: do not delete files
   "th1_pref=s"      => \$opts{th1_pref},     # Small thumbnail prefix (can end with /), empty for no thumbnails
   "th1_size=s"      => \$opts{th1_size},     # Small thumbnail size (S1:S2:S3, see elsewhere)
   "th1_rm_exif:1"   => \$opts{th1_rm_exif},  # Remove exif-data from small thumbnails (default)
@@ -1230,10 +1231,11 @@ $0 <options> <infile>
 
 =item  html_stdout:1    -- print index html to stdout instead of writing to file. html option is still needed.
 
-
 =item  C|cleanup       --  CLEANUP MODE: remove unused files and exit
 
 =item  f|force:1       --  cleanup mode: do not ask before deleting files
+
+=item  dryrun:1        --  cleanup mode: do not delete files
 
 =item  th1_pref=s      --  Small thumbnail prefix (can end with /), empty for no thumbnails
 
