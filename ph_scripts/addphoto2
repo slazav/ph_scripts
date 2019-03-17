@@ -662,7 +662,7 @@ for (my $i=0; $i<@ph; $i++){
       print STDERR "  creating mark file: $ph->{mrkpath}\n" if $opts{verbose};
 
       my $sc=fig_im_scale($ph->{figpath}, $ph->{imgpath});
-      die "Bad fig file: $ph->{figpath}" unless $sc;
+      die "Bad fig file: $ph->{figpath}\n" unless $sc;
       $sc*=2 if $opts{mstyle} ne 'simple_gif';
 
       ## create gif file
