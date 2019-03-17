@@ -474,7 +474,7 @@ foreach(<IN>){
     push @hh, {depth=>$d, title=>$t};
   }
   elsif (/$re{keep}/){  # keep command
-    push @keep, $1;
+     push @keep, split('\s+', $1);
   }
   elsif (/$re{set}/){  # set command
     $opts{$1} = $2;
@@ -1383,6 +1383,8 @@ Other lines copied without changes. Commands:
 =item \\<any text>               -- put '\' at the beginning of the line.
 
 =item \\set <name> <value>       -- set an option.
+
+=item \\keep <file pattern> ...  -- keep additional files during the cleanup mode
 
 =back
 
