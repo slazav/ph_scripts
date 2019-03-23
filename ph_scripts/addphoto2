@@ -1116,7 +1116,7 @@ $of = "| $opts{html_filter} > $of" if $opts{html_filter};
 my $htmldir = "$opts{html}";
 $htmldir =~ s/[^\/]*$//;
 $htmldir =~ s|/+$||; # remove trailing /
-my $htm2image = rel_dir($htmldir, $opts{imgdir});
+my $htm2imgdir = rel_dir($htmldir, $opts{imgdir});
 
 open OUT, "> $of" or die "Can't open $of: $!\n";
 print STDERR "[Creating HTML index: $of]\n" if $opts{verbose};
@@ -1128,11 +1128,11 @@ foreach(<IN>){
 
     # paths of html page and thumbnail image from album index
     my ($id, $ib, $ie) = path_split($img);
-    my $imgfile = "$htm2image$ph->{imgdir2img}$ph->{imgname}";
-    my $htmfile = "$htm2image$ph->{imgdir2img}$ph->{htmname}";
-    my $th1file = "$htm2image$ph->{imgdir2img}$ph->{th1name}";
-    my $th2file = "$htm2image$ph->{imgdir2img}$ph->{th2name}";
-    my $mrkfile = "$htm2image$ph->{imgdir2img}$ph->{mrkname}";
+    my $imgfile = "$htm2imgdir$ph->{imgdir2img}$ph->{imgname}";
+    my $htmfile = "$htm2imgdir$ph->{imgdir2img}$ph->{htmname}";
+    my $th1file = "$htm2imgdir$ph->{imgdir2img}$ph->{th1name}";
+    my $th2file = "$htm2imgdir$ph->{imgdir2img}$ph->{th2name}";
+    my $mrkfile = "$htm2imgdir$ph->{imgdir2img}$ph->{mrkname}";
     # what to use in the index:
     my $th0file = $ph->{use_th1} ? $th1file : ($ph->{use_th2} ? $th2file : $imgfile);
 
