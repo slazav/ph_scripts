@@ -576,7 +576,7 @@ for (my $i=0; $i<@ph; $i++){
   my $nurl = rel_dir($d0, $dn) . "$bn.htm";
   my $uurl = rel_dir("$opts{imgdir}/$d0", '')  . "$opts{html}#ph" . ($i+1);
 
-  # related files (paths from the image location)
+  # files (paths from the image location)
   $ph->{imgname} = "$b0$e0";
   $ph->{figname} = "$b0.fig";
   $ph->{th1name} = "$opts{th1_pref}$b0$e0";
@@ -584,11 +584,10 @@ for (my $i=0; $i<@ph; $i++){
   $ph->{mrkname} = "$opts{mark_pref}$b0.gif";
   $ph->{htmname} = "$opts{html_pref}$b0.htm";
 
-#  my $th1dir = $ph->{th1name} =~
   $ph->{imgdir2img} = $d0;
   $ph->{img2imgdir} = rel_dir($d0, '');
 
-  # related files (paths from cwd)
+  # paths from cwd
   $ph->{imgpath} = "$imgdir$d0$ph->{imgname}";
   $ph->{figpath} = "$imgdir$d0$ph->{figname}";
   $ph->{th1path} = "$imgdir$d0$ph->{th1name}";
@@ -1126,13 +1125,13 @@ foreach(<IN>){
     my $ph = $ph[$np++];
     my ($img, $title) = (${$ph[$np-1]->{files}}[0], $ph[$np-1]->{title});
 
-    # paths of html page and thumbnail image from album index
-    my ($id, $ib, $ie) = path_split($img);
-    my $imgfile = "$htm2imgdir$ph->{imgdir2img}$ph->{imgname}";
-    my $htmfile = "$htm2imgdir$ph->{imgdir2img}$ph->{htmname}";
-    my $th1file = "$htm2imgdir$ph->{imgdir2img}$ph->{th1name}";
-    my $th2file = "$htm2imgdir$ph->{imgdir2img}$ph->{th2name}";
-    my $mrkfile = "$htm2imgdir$ph->{imgdir2img}$ph->{mrkname}";
+    # paths from html index
+    my $htm2img = $htm2imgdir . $ph->{imgdir2img};
+    my $imgfile = $htm2img . $ph->{imgname};
+    my $htmfile = $htm2img . $ph->{htmname};
+    my $th1file = $htm2img . $ph->{th1name};
+    my $th2file = $htm2img . $ph->{th2name};
+    my $mrkfile = $htm2img . $ph->{mrkname};
     # what to use in the index:
     my $th0file = $ph->{use_th1} ? $th1file : ($ph->{use_th2} ? $th2file : $imgfile);
 
