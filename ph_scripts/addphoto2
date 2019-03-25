@@ -26,7 +26,7 @@ my %opts = (
   html_pref         => '',
   quality          => 90,
   map_ref          => 'nakarte',
-  map_zoom         => 6,
+  map_zoom         => 13,
   fig_lang         => 'ru_RU.KOI8-R',
   html_charset     => 'koi8-r',
   html_viewport    => 1,
@@ -346,19 +346,26 @@ sub get_msg($){
 }
 
 ## print latlon coords with or without referense to google/nakarte
-sub html_crd($$$){
+sub crd_url($$$){
   my ($lat, $lon, $name) = @_;
   my $style = $opts{map_ref};
   my $zoom  = $opts{map_zoom};
   if ($style eq 'gmap'){
-    return sprintf('<a href="http://maps.google.com?t=h&' .
-                   'q=%.7f+%.7f&ll=%.7f,%.7f&z=%d">%.7f %.7f</a><br/>',
-                    $lat, $lon, $lat, $lon, $zoom, $lat, $lon);
+    return sprintf('http://maps.google.com?t=h&q=%.7f+%.7f&ll=%.7f,%.7f&z=%d',
+                    $lat, $lon, $lat, $lon, $zoom);
   }
   if ($style eq 'nakarte'){
-    return sprintf('<a href="https://nakarte.me/#m=%d/%f/%f&nktp=%f/%f/%s&l=O">%.7f %.7f</a><br/>',
-                    $zoom, $lat, $lon, $lat, $lon, $name, $lat, $lon);
+    return sprintf('https://nakarte.me/#m=%d/%f/%f&nktp=%f/%f/%s&l=O',
+                    $zoom, $lat, $lon, $lat, $lon, $name);
   }
+  return '';
+}
+
+## print latlon coords with or without referense to google/nakarte
+sub html_crd($$$){
+  my ($lat, $lon, $name) = @_;
+  my $url = crd_url($lat, $lon, $name);
+  if ($url) {return sprintf('<a href="$url">%.7f %.7f</a><br/>',$lat, $lon);}
   return sprintf('%.7f %.7f', $lat, $lon);
 }
 
@@ -1099,6 +1106,8 @@ if (!$opts{nohtml} && (
   close JS;
 }
 
+
+
 #################################################################
 #################################################################
 ### create index html
@@ -1120,10 +1129,213 @@ my $htm2imgdir = rel_dir($htmldir, $opts{imgdir});
 open OUT, "> $of" or die "Can't open $of: $!\n";
 print STDERR "[Creating HTML index: $of]\n" if $opts{verbose};
 
+
+sub write_pswp_data($){
+  my $fd = shift;
+print $fd qq*
+<!-- PhotoSwipe data, added because of --pswp option was used -->
+<div id=gallery class=pswp tabindex=-1 role=dialog area-hidden=true>
+  <div class="pswp__bg"></div>
+  <div class="pswp__scroll-wrap">
+    <div class="pswp__container">
+      <div class="pswp__item"></div>
+      <div class="pswp__item"></div>
+      <div class="pswp__item"></div>
+    </div>
+    <div class="pswp__ui pswp__ui--hidden">
+      <div class="pswp__top-bar">
+        <div class="pswp__counter"></div>
+        <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+        <a href="" download class="ref_download">
+        <button class="pswp__button btn_download" title="Download"></button></a>
+        <button class="pswp__button btn_time"     title="Time"></button>
+        <button class="pswp__button btn_map"      title="Map"></button>
+        <button class="pswp__button btn_marks"    title="Marks on/off"></button>
+        <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+        <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+        <div class="pswp__preloader">
+          <div class="pswp__preloader__icn">
+            <div class="pswp__preloader__cut">
+              <div class="pswp__preloader__donut"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!--div class="pswp__loading-indicator"><div class="pswp__loading-indicator__line"></div></div-->
+      <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+        <div class="pswp__share-tooltip">
+          <!-- <a href="#" class="pswp__share--facebook"></a>
+               <a href="#" class="pswp__share--twitter"></a>
+               <a href="#" class="pswp__share--pinterest"></a>
+               <a href="#" download class="pswp__share--download"></a> -->
+        </div>
+      </div>
+      <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)"></button>
+      <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button>
+      <div class="pswp__caption" align=left>
+        <div class="pswp__caption__center" width=100% align=left></div>
+      </div>
+    </div>
+  </div>
+</div>
+*;
+print $fd qq*
+<script>
+var pswp;
+function addphoto_open_pswp(i, el){
+
+  // getBoundingClientRect works properly with IMG, not A.
+  // switch to inner img
+  for (let i = 0; el && i < el.children.length; i++) {
+    if (el.children[i].tagName === 'IMG') { el = el.children[i]; break; }
+  }
+
+  // Define PhotoSwipe options
+  // See: http://photoswipe.com/documentation/options.html
+  var options = {
+    index: i-1,
+    getThumbBoundsFn: function(index) {
+        // See Options->getThumbBoundsFn section of docs for more info
+        if (!el) return;
+        var rect = el.getBoundingClientRect();
+        var pageYScroll = window.pageYOffset || document.documentElement.scrollTop;
+        return {x:rect.left, y:rect.top + pageYScroll, w:rect.width};
+    },
+    addCaptionHTMLFn: function(item, captionEl, isFake) {
+      captionEl.children[0].innerHTML = item.title;
+      return true;
+    },
+  };
+  if(!el) {
+    options.showAnimationDuration = 0;
+  }
+
+  // Pass data to PhotoSwipe and initialize it
+  var pswpElement = document.querySelectorAll('.pswp')[0];
+  pswp = new PhotoSwipe(
+    pswpElement, PhotoSwipeUI_Default, addphoto_images, options);
+
+  // see: http://photoswipe.com/documentation/responsive-images.html
+  var realViewportW, realViewportH,
+      useLargeImages = false, firstResize = true, imageSrcWillChange;
+
+  pswp.listen('beforeResize', function() {
+    realViewportW = Math.min(document.documentElement.clientWidth, window.innerWidth || 1600);
+  });
+
+  pswp.listen('gettingData', function(index, item) {
+    if (item.th2 != undefined && realViewportW < item.th2.w) {
+      item.src = item.th2.src;
+      item.w = item.th2.w;
+      item.h = item.th2.h;
+      return;
+    }
+    if (item.th1 != undefined && realViewportW < item.th1.w) {
+      item.src = item.th1.src;
+      item.w = item.th1.w;
+      item.h = item.th1.h;
+      return;
+    }
+    if (item.th1.src) {
+      item.msrc = item.th1.src;
+    }
+    item.src = item.th0.src;
+    item.w = item.th0.w;
+    item.h = item.th0.h;
+  });
+
+  pswp.listen('afterChange', function(index) {
+    var it = pswp.currItem;
+    bp = document.getElementsByClassName("ref_download");
+    if (bp.length){ bp[0].setAttribute('href', it.th0.src); }
+    bp = document.getElementsByClassName("btn_time");
+    if (bp.length){
+      if (it.dat) {bp[0].setAttribute('title', it.dat);}
+      else {bp[0].style.display = 'none';}
+    }
+    bp = document.getElementsByClassName("btn_map");
+    if (bp.length){
+      if (it.lat && it.lon){
+        bp[0].style.display = '';
+        bp[0].setAttribute('title', it.lat + "," + it.lon + ", " + it.alt || '');
+        if (it.map){
+          bp[0].setAttribute('onclick', "window.open('" + it.map + "');");
+        }
+      }
+      else {bp[0].style.display = 'none';}
+    }
+    bp = document.getElementsByClassName("btn_marks");
+    if (bp.length){
+      if (pswp.currItem.ovl) {
+        bp[0].style.display = '';
+        bp[0].setAttribute('onclick', 'addphoto_switch_marks()');
+      }
+      else {bp[0].style.display = 'none';}
+    }
+  });
+  pswp.init();
+}
+
+function addphoto_switch_marks() {
+  el = pswp.currItem.ovlEl;
+  if (!el) {return;}
+  el.style.display = el.style.display == 'none'? '':'none';
+}
+
+// Parse URL hash and open pswp if it contains #pid
+function addphoto_parse_hash() {
+  var hash = window.location.hash.substring(1);
+  var params = {};
+  if(hash.length < 3) {return params;} // a=b
+  var vars = hash.split('&');
+  for (var i = 0; i < vars.length; i++) {
+    if(!vars[i]) { continue; }
+    var pair = vars[i].split('=');
+    if(pair.length < 2) { continue; }
+    params[pair[0]] = pair[1];
+  }
+  if(params.pid) {
+    addphoto_open_pswp(params.pid);
+  }
+};
+*;
+
+  print $fd "addphoto_images=[\n";
+  foreach my $ph (@ph){
+    # paths of html page and thumbnail image from album index
+    my $htm2img = $htm2imgdir . $ph->{imgdir2img};
+    my $imgfile = $htm2img . $ph->{imgname};
+    my $th1file = $htm2img . $ph->{th1name};
+    my $th2file = $htm2img . $ph->{th2name};
+    my $mrkfile = $htm2img . $ph->{mrkname};
+    print  $fd "  {";
+    print  $fd  "\n    th0: {src: \"$imgfile\", w:$ph->{img_w}, h:$ph->{img_h}}";
+    print  $fd ",\n    th1: {src: \"$th1file\", w:$ph->{th1_w}, h:$ph->{th1_h}}" if $ph->{use_th1};
+    print  $fd ",\n    th2: {src: \"$th2file\", w:$ph->{th2_w}, h:$ph->{th2_h}}" if $ph->{use_th2};
+    print  $fd ",\n    ovl: \"$mrkfile\"" if $ph->{use_mrk};
+    print  $fd ",\n    title: \"$ph->{title}\"" if $ph->{title};
+    print  $fd ",\n    dat: \"$ph->{time}\"" if $ph->{time};
+    printf $fd ",\n    alt: %.1f", $ph->{alt} if $ph->{alt};
+    printf $fd ",\n    lat: %.6f", $ph->{lat} if $ph->{lat};
+    printf $fd ",\n    lon: %.6f", $ph->{lon} if $ph->{lon};
+    printf $fd ",\n    map: \"%s\"", crd_url($ph->{lat}, $ph->{lon}, $ph->{imgname}) if $ph->{lat} ||$ph->{lon};
+    print  $fd "\n  },\n";
+  }
+  print $fd "];\n";
+
+print $fd qq*
+addphoto_parse_hash();
+</script>
+<!-- end of PhotoSwipe data -->
+*;
+}
+
 foreach(<IN>){
   if (/$re{photo}/){ # \photo commands
     my $ph = $ph[$np++];
     my ($img, $title) = (${$ph[$np-1]->{files}}[0], $ph[$np-1]->{title});
+
+    write_pswp_data(*OUT) if $np==1 && $opts{pswp};
 
     # paths from html index
     my $htm2img = $htm2imgdir . $ph->{imgdir2img};
@@ -1133,19 +1345,13 @@ foreach(<IN>){
     my $th2file = $htm2img . $ph->{th2name};
     my $mrkfile = $htm2img . $ph->{mrkname};
     # what to use in the index:
-    my $th0file = $ph->{use_th1} ? $th1file : ($ph->{use_th2} ? $th2file : $imgfile);
+    my $th_file = $ph->{use_th1} ? $th1file : ($ph->{use_th2} ? $th2file : $imgfile);
 
     # get size of small thumbnail (it can be missing if use_th1==0!)
     unless ($ph->{th1_w} && $ph->{th1_h}) {
       my $ret;
       ($ret, $ph->{th1_w}, $ph->{th1_h}) =
       split(/\s+/, `ph_resize --scale $opts{th1_size} --dryrun --printres $ph->{imgpath} /dev/null`);
-    }
-
-    my $pswp_data='';
-    if ($opts{pswp}){
-      $pswp_data .= " class='pswp_image'";
-      $pswp_data .= " data-size=$ph->{th1_w}x$ph->{th1_h}";
     }
 
     # open a row only if align = center
@@ -1156,29 +1362,20 @@ foreach(<IN>){
       print OUT "</div>\n" if $in_row; # close row
       $in_row=0;
     }
-    print OUT "<div class=addphoto-img-$ph->{align}><a name='ph$np'></a>\n";
-
-    # collect all information for pswp in <div>
-    if ($opts{pswp}){
-      # size of the big image
-      print OUT "<div class='pswp_image' data='$imgfile' data-size='$ph->{img_w}x$ph->{img_h}'\n";
-      print OUT "  data-med='$th2file' data-med-size='$ph->{th2_w}x$ph->{th2_h}'\n" if $ph->{use_th2};
-      print OUT "  mark-src='$mrkfile'\n" if $ph->{use_mrk};
-
-      print  OUT "  dat='$ph->{time}'" if $ph->{time};
-      printf OUT "  alt='%.1f'", $ph->{alt} if $ph->{alt};
-      printf OUT "  lat='%.6f'", $ph->{lat} if $ph->{lat};
-      printf OUT "  lon='%.6f'", $ph->{lon} if $ph->{lon};
-      print  OUT ">\n";
-      print  OUT "<a href='$imgfile'>\n";
+    my $a_attrs=" name='ph$np'";
+    if (!$opts{pswp}){
+      if ($opts{nohtm}) { $a_attrs .= " href='$imgfile'"; }
+      else              { $a_attrs .= " href='$htmfile'"; }
     }
     else {
-      print OUT "<a href='$htmfile'>\n";
+      $a_attrs .= " onclick='addphoto_open_pswp($np, this)'";
     }
-    print OUT "<img src='$th0file' alt='$ph->{atitle}'\n";
-    print OUT "  width=$ph->{th1_w} height=$ph->{th1_h} class=addphoto-th></a><br>\n";
-    print OUT "<div class=addphoto-caption style='width:$ph->{th1_w}'>$ph->{title}</div>\n";
-    if ($opts{pswp}){ print OUT "</div>\n"; }
+
+    print OUT "<div class=addphoto-img-$ph->{align}><a$a_attrs>\n";
+    print OUT "<img src='$th_file' alt='$ph->{atitle}'" .
+              " width=$ph->{th1_w} height=$ph->{th1_h}".
+              " class=addphoto-th></a>\n";
+    print OUT "<br><div class=addphoto-caption style='width:$ph->{th1_w}'>$ph->{title}</div>\n";
     print OUT "</div>\n";
   }
   else{
@@ -1202,6 +1399,9 @@ foreach(<IN>){
 }
 print OUT "</div>\n" if $in_row; # close row
 close OUT;
+
+
+
 print STDERR "[Done: $np photos, $nh headers]\n" if $opts{verbose};
 
 __END__

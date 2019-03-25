@@ -1,0 +1,29 @@
+2828,2833d2827
+< 			if (item.ovl) {
+< 			  item.ovlEl = img.cloneNode(false);
+< 			  item.ovlEl.src = item.ovl;
+< 			  baseDiv.appendChild(item.ovlEl);
+< 			}
+< 
+2888a2883,2887
+> 
+> 		if(!img) {
+> 			img = item.container.lastChild;
+> 		}
+> 
+2896,2904c2895,2897
+< 		if (img) {
+< 		  img.style.width = w + 'px';
+< 		  img.style.height = h + 'px';
+< 		}
+< 		for (var i=0; i<item.container.children.length; i++) {
+< 		  var e = item.container.children[i];
+< 		  e.style.width = w + 'px';
+< 		  e.style.height = h + 'px';
+< 		}
+---
+> 
+> 		img.style.width = w + 'px';
+> 		img.style.height = h + 'px';
+3175d3167
+< 				if (item.ovlEl) {  _showOrHide(item, item.ovlEl); }
