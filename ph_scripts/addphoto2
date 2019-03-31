@@ -15,6 +15,7 @@ my %opts = (
   init_index_head  => "<html><body>\n",
   init_index_tail  => "</body></html>\n",
   init_width       => 800,
+  init_tsort       => 1,
   init_days        => 1,
   th1_pref         => '_',
   th1_size         => '260:160:800',
