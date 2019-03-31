@@ -366,7 +366,7 @@ sub crd_url($$$){
 sub html_crd($$$){
   my ($lat, $lon, $name) = @_;
   my $url = crd_url($lat, $lon, $name);
-  if ($url) {return sprintf('<a href="$url">%.7f %.7f</a><br/>',$lat, $lon);}
+  if ($url) {return sprintf('<a href="%s">%.7f %.7f</a><br/>',$url, $lat, $lon);}
   return sprintf('%.7f %.7f', $lat, $lon);
 }
 
