@@ -1,0 +1,9 @@
+#!/bin/sh -eu
+
+# Archive copy in .src directory:
+# just copy all *.jpg files which are missing where
+
+mkdir .src -p
+for f in *.jpg; do
+  [ -f .src/$f ] || cp $f .src/$f
+done

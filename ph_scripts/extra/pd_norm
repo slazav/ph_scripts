@@ -1,6 +1,6 @@
 #!/bin/sh -eu
 
-# normalize photo names, autorotate, create archive copy in .src directory
+# normalize photo names, autorotate
 
 count=0
 # convert names to lowercase
@@ -34,15 +34,8 @@ for i in $(find . -maxdepth 1 -name '*.JPG' -or -name '*.jpg'); do
 done
 
 [ "$count" != 0 ] || { printf "No jpeg files found!\n"; exit 1; }
-
 echo "$count jpeg files found"
 
 # autorotate photos
 exifautotran *.jpg
 
-# create archive copy
-mkdir .src
-cp *.jpg .src/
-
-#chmod 444 .src/*.jpg
-#chmod 555 .src
