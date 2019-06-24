@@ -33,6 +33,7 @@ my %opts = (
   html_viewport    => 1,
   html_screen_sw   => 1,
   html_arrows      => 1,
+  html_resize      => 1,
   mstyle           => 'aa_gif',
   fig_res          => 14.2875, # convert pixel -> fig units
 );
@@ -83,6 +84,7 @@ Getopt::Long::GetOptions(
   "html_viewport:1" => \$opts{html_viewport},# add meta viewport tag in html pages (not in index html)
   "html_screen_sw:1"=> \$opts{html_screen_sw}, # add "fit to screen" switch to html pages
   "html_arrows:1"   => \$opts{html_arrows},  # add left/right arrow navigation to html pages
+  "html_resize:1"   => \$opts{html_resize},  # resizable images in html pages (default state of "size" button)
 ) or pod2usage(1);
 
 my $html_version = '2.3'; # changes when regenerating of html pages is needed
@@ -767,6 +769,7 @@ for (my $i=0; $i<@ph; $i++){
       $opts{html_viewport} || '',
       $opts{html_screen_sw} || '',
       $opts{html_arrows} || '',
+      $opts{html_resize} || '',
       $html_version)));
     # get old key
     if (open KEY, $ph->{htmpath}) {
@@ -865,18 +868,21 @@ for (my $i=0; $i<@ph; $i++){
     <div class=addphoto-nav>$nav
     </div>*;
 
+    # image class: img1 will fit to screen, img2 will be of original size
+    my $img_class = $opts{html_resize} ? 'img1':'img2';
+
     # main image
     my $main=qq*
-      <img id=image class=img1 style='width:${w}px;height:auto;'
+      <img id=image class=$img_class style='width:${w}px;height:auto;'
            src='$imgref' alt='$ph->{atitle}'>*;
 
     # marks overlay
     if ($ph->{use_mrk}){
       $main = qq*
       <div style="position: relative;" onclick="switch_mrk();">
-        <img id=image class=img1 style='width:${w}px;height:auto;'
+        <img id=image class=$img_class style='width:${w}px;height:auto;'
              src='$imgref' alt='$ph->{atitle}'>
-        <img id=marks class=img1 style='width:${w}px;height:auto;'
+        <img id=marks class=$img_class style='width:${w}px;height:auto;'
              src='$ph->{mrkname}'>
       </div>*;
     }
@@ -1478,6 +1484,8 @@ $0 <options> <infile>
 =item  html_screen_sw:1  --  add "size" switch to html pages.
 
 =item  html_arrows:1     --  add left/right arrow navigation to html pages.
+
+=item  html_resize:1     --  resizable images in html pages (default state of "size" button)
 
 =back
 
