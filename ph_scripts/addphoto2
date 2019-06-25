@@ -1077,6 +1077,7 @@ if (!$opts{nohtml} && (
     }* if $opts{lang};
 
   print JS qq*
+    // switch image zoom
     function switch_scr(){
       var image = document.getElementById("image");
       if (!image) {return;}
@@ -1088,6 +1089,7 @@ if (!$opts{nohtml} && (
     }* if $opts{html_screen_sw};
 
   print JS qq*
+    // switch image marks
     function switch_mrk(){
       var e = document.getElementById("marks");
       if (!marks) {return;}
@@ -1095,16 +1097,45 @@ if (!$opts{nohtml} && (
     }* if $opts{_use_mrk};
 
   print JS qq*
+    // key navigation
     function process_key(event){
-      if (event.code == 'ArrowRight' ||
-          event.code == 'ArrowLeft') {
-        var links = document.getElementsByTagName("link");
-        for (var i = 0; i < links.length; i++) {
-          if (event.code == 'ArrowRight' && links[i].rel == "next") {
-            window.location.href = links[i].href; }
-          if (event.code == 'ArrowLeft' && links[i].rel == "previous") {
-            window.location.href = links[i].href; }
-        }
+      var l = document.documentElement.scrollLeft;
+      if (!l) l=document.body.scrollLeft;
+
+      var sw = document.documentElement.scrollWidth;
+      if (!sw) sw = document.body.scrollWidth;
+
+      var cw = document.documentElement.clientWidth;
+      if (!cw) cw = document.body.clientWidth;
+
+      var rel = "";
+      if (event.code == 'ArrowRight'){
+        rel = "next";
+        if (cw+l < sw) return;
+      }
+      if (event.code == 'ArrowLeft'){
+        rel = "previous";
+        if (l > 0) return;
+      }
+      if (event.code == 'Escape'){
+        rel = "top";
+      }
+      if (event.code == 'ArrowUp'){
+        switch_mrk();
+      }
+      if (event.code == 'ArrowDown'){
+        switch_scr();
+      }
+
+      if (rel == "") return;
+
+      var links = document.getElementsByTagName("link");
+      for (var i = 0; i < links.length; i++) {
+        if (links[i].rel != rel) continue;
+        event.preventDefault();
+        event.stopPropagation();
+        window.location.href = links[i].href;
+        return;
       }
     }
     document.addEventListener('keydown', process_key);*
