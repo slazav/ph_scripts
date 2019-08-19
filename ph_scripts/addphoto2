@@ -263,7 +263,7 @@ sub get_exif{
   my $exif;
   my $n;
   # parse values from exiv2 output.
-  foreach (`exiv2 -Pkv $file 2>/dev/null`){
+  foreach (`exiv2 -Pkv "$file" 2>/dev/null`){
     chomp;
     my ($k, $v) = split(/\s+/,$_,2);
     $exif->{$k}=$v if $v && $k;
@@ -403,7 +403,7 @@ if ($opts{init} || $opts{init_only}){
 
     # get width of small thumbnail (it can be missing!)
     my ($ret, $w, $h) =
-      split(/\s+/, `ph_resize --scale $opts{th1_size} --dryrun --printres $path /dev/null`);
+      split(/\s+/, `ph_resize --scale "$opts{th1_size}" --dryrun --printres "$path" /dev/null`);
 
     # time from exif
     my ($time,$alt,$lat,$lon) = get_exif($path);
@@ -621,8 +621,8 @@ for (my $i=0; $i<@ph; $i++){
     if (isolder($ph->{th1path}, $ph->{imgpath}) ||
         (thmark_check($ph->{th1path}) && ! $ph->{use_mrk} && $#files<0)){
       print STDERR "  updating thumbnail: " if $opts{verbose};
-      `ph_resize --scale $opts{th1_size} --verbose $opts{verbose}\\
-         --quality $opts{quality} --rm_exif $opts{th1_rm_exif} $ph->{imgpath} $ph->{th1path}`;
+      `ph_resize --scale "$opts{th1_size}" --verbose "$opts{verbose}"\\
+         --quality "$opts{quality}" --rm_exif "$opts{th1_rm_exif}" "$ph->{imgpath}" "$ph->{th1path}"`;
     }
     ## add thumbnail mark if needed
     thmark_add($ph->{th1path}) if $ph->{use_mrk} && !thmark_check($ph->{th1path});
@@ -634,7 +634,7 @@ for (my $i=0; $i<@ph; $i++){
     # th1 size is needed for html index even if file does not exist
      my $ret;
     ($ret, $ph->{th1_w}, $ph->{th1_h}) =
-      split /\s+/,`ph_resize --scale $opts{th1_size} --verbose 0 --dryrun $ph->{imgpath} /dev/null`;
+      split /\s+/,`ph_resize --scale "$opts{th1_size}" --verbose 0 --dryrun "$ph->{imgpath}" /dev/null`;
   }
 
   ############################################################
@@ -647,8 +647,8 @@ for (my $i=0; $i<@ph; $i++){
     ## if th2 file is older then the image, update it
     if (isolder($ph->{th2path}, $ph->{imgpath})){
       print STDERR "  updating medium-size image: " if $opts{verbose};
-      `ph_resize --scale $opts{th2_size} --verbose $opts{verbose}\\
-         --quality $opts{quality} --rm_exif $opts{th2_rm_exif} $ph->{imgpath} $ph->{th2path}`;
+      `ph_resize --scale "$opts{th2_size}" --verbose "$opts{verbose}"\\
+         --quality "$opts{quality}" --rm_exif "$opts{th2_rm_exif}" "$ph->{imgpath}" "$ph->{th2path}"`;
     }
     ## th2 size
     ($ph->{th2_w}, $ph->{th2_h}) = image_size($ph->{th2path});
@@ -1389,7 +1389,7 @@ foreach(<IN>){
     unless ($ph->{th1_w} && $ph->{th1_h}) {
       my $ret;
       ($ret, $ph->{th1_w}, $ph->{th1_h}) =
-      split(/\s+/, `ph_resize --scale $opts{th1_size} --dryrun --printres $ph->{imgpath} /dev/null`);
+      split(/\s+/, `ph_resize --scale "$opts{th1_size}" --dryrun --printres "$ph->{imgpath}" /dev/null`);
     }
 
     # open a row only if align = center
