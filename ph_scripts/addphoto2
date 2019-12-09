@@ -83,7 +83,7 @@ Getopt::Long::GetOptions(
   "html_charset=s"  => \$opts{html_charset}, # add meta charset tag in html pages (not in index html)
   "html_viewport:1" => \$opts{html_viewport},# add meta viewport tag in html pages (not in index html)
   "html_screen_sw:1"=> \$opts{html_screen_sw}, # add "fit to screen" switch to html pages
-  "html_arrows:1"   => \$opts{html_arrows},  # add left/right arrow navigation to html pages
+  "html_arrows:1"   => \$opts{html_arrows},  # add navigation (including left/right arrows) to html pages
   "html_resize:1"   => \$opts{html_resize},  # resizable images in html pages (default state of "size" button)
 ) or pod2usage(1);
 
@@ -874,12 +874,12 @@ for (my $i=0; $i<@ph; $i++){
     # main image
     my $main=qq*
       <img id=image class=$img_class style='width:${w}px;height:auto;'
-           src='$imgref' alt='$ph->{atitle}'>*;
+           src='$imgref' alt='$ph->{atitle}' onclick='on_click(event)'>*;
 
     # marks overlay
     if ($ph->{use_mrk}){
       $main = qq*
-      <div style="position: relative;" onclick="switch_mrk();">
+      <div style="position: relative;" onclick='on_click(event)'>
         <img id=image class=$img_class style='width:${w}px;height:auto;'
              src='$imgref' alt='$ph->{atitle}'>
         <img id=marks class=$img_class style='width:${w}px;height:auto;'
@@ -1084,8 +1084,7 @@ if (!$opts{nohtml} && (
       var cn = (image.className=='img1' ? 'img2':'img1');
       image.className = cn;
       var marks = document.getElementById("marks");
-      if (!marks) {return;}
-      marks.className = cn;
+      if (marks) { marks.className = cn; }
     }* if $opts{html_screen_sw};
 
   print JS qq*
@@ -1120,10 +1119,10 @@ if (!$opts{nohtml} && (
       if (event.code == 'Escape'){
         rel = "top";
       }
-      if (event.code == 'ArrowUp'){
+      if (event.code == 'Enter'){
         switch_mrk();
       }
-      if (event.code == 'ArrowDown'){
+      if (event.code == 'KeyS'){
         switch_scr();
       }
 
@@ -1138,8 +1137,26 @@ if (!$opts{nohtml} && (
         return;
       }
     }
-    document.addEventListener('keydown', process_key);*
-      if $opts{html_arrows};
+
+    function on_click(event){
+      var image = document.getElementById("image");
+      var w1 = image.width;
+      var h1 = image.height;
+      var xs = window.scrollX;
+      var ys = window.scrollY;
+      var x0 = image.getBoundingClientRect().left + xs;
+      var y0 = image.getBoundingClientRect().top + ys;
+      switch_scr();
+      var w2 = image.width;
+      var h2 = image.height;
+      var kx = 1.0\*w2/w1;
+      var ky = 1.0\*h2/h1;
+      var xm  = event.clientX;
+      var ym  = event.clientY;
+      window.scroll(x0-xm + kx\*(xs-x0+xm), y0-ym + ky\*(ys-y0+ym));
+    }
+
+    document.addEventListener('keydown', process_key);    *if $opts{html_arrows};
 
   close JS;
 }
