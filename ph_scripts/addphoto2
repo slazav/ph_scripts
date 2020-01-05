@@ -1473,67 +1473,85 @@ $0 <options> <infile>
 
 =over 2
 
-=item  h|help           -- print help message
+=item h|help          -- print help message
 
-=item  v|verbose:1      -- be verbose
+=item v|verbose:1     -- be verbose
 
-=item  D|imgdir=s       -- image dir (relative to index file location, default .)
+=item D|imgdir=s      -- image dir (relative to index file location, default .)
 
-=item  H|html=s         -- html file (relative to index file location)
+=item H|html=s        -- html file (relative to index file location)
 
-=item  html_filter=s    -- filter for index html
+=item html_filter=s   -- filter for index html
 
-=item  html_stdout:1    -- print index html to stdout instead of writing to file. html option is still needed.
+=item html_stdout:1   -- print index html to stdout instead of writing to file. html option is still needed.
 
-=item  C|cleanup       --  CLEANUP MODE: remove unused files and exit
+=item I|init          -- INIT MODE: create index file
 
-=item  f|force:1       --  cleanup mode: do not ask before deleting files
+=item J|init_only     -- create index file and exit
 
-=item  dryrun:1        --  cleanup mode: do not delete files
+=item T|init_tsort:1  -- init mode: sort photos by time
 
-=item  th1_pref=s      --  Small thumbnail prefix (can end with /), empty for no thumbnails
+=item d|init_days:1   -- init mode: add day headers
 
-=item  th1_size=s      --  Small thumbnail size (S1:S2:S3, see elsewhere)
+=item r|init_rec:1    -- init mode: find files recursively
 
-=item  th1_rm_exif:1   --  Remove exif-data from small thumbnails (default)
+=item w|init_width=i  -- init mode: max page width
 
-=item  th2_pref=s      --  Large thumbnail prefix (can and with /), empty for no thumbnails
+=item init_img_mask=s -- init mode: mask for finding images
 
-=item  th2_size=s      --  Large thumbnail size (S1:S2:S3, see elsewhere)
+=item init_index_head=s -- init mode: head for the index file
 
-=item  th2_rm_exif:1   --  Remove exif-data from large thumbnails (default)
+=item init_index_tail=s -- init mode: tail for the index file
 
-=item  mark_pref=s     --  Image marks prefix (can and with /), empty for no marks
+=item C|cleanup       -- CLEANUP MODE: remove unused files and exit
 
-=item  html_pref=s     --  Image marks prefix (can and with /), empty for no marks
+=item f|force:1       -- cleanup mode: do not ask before deleting files
 
-=item  nohtml:1        --  Do not generate hmtl pages for images
+=item dryrun:1        -- cleanup mode: do not delete files
 
-=item  mstyle=s        --  Mark style
+=item th1_pref=s      -- Small thumbnail prefix (can end with /), empty for no thumbnails
 
-=item  l|lang:1        --  Language support
+=item th1_size=s      -- Small thumbnail size (S1:S2:S3, see elsewhere)
 
-=item  pswp:1          --  PhotoSwipe support
+=item th1_rm_exif:1   -- Remove exif-data from small thumbnails (default)
 
-=item  quality=i       --  Jpeg quality for thumbnails (default 90)
+=item th2_pref=s      -- Large thumbnail prefix (can and with /), empty for no thumbnails
 
-=item  map_ref=s       --  Map link style (gmap, nakarte)
+=item th2_size=s      -- Large thumbnail size (S1:S2:S3, see elsewhere)
 
-=item  map_zoom=i      --  Map link zoom (default 6)
+=item th2_rm_exif:1   -- Remove exif-data from large thumbnails (default)
 
-=item  fig_lang=s        --  fig language
+=item mark_pref=s     -- Image marks prefix (can and with /), empty for no marks
 
-=item  fig_res=f         --  fig resolution
+=item html_pref=s     -- Image marks prefix (can and with /), empty for no marks
 
-=item  html_charset=s    --  add meta charset tag in html pages (not in index html)
+=item nohtml:1        -- Do not generate hmtl pages for images
 
-=item  html_viewport:1   --  add meta viewport tag in html pages (not in index html)
+=item mstyle=s        -- Mark style
 
-=item  html_screen_sw:1  --  add "size" switch to html pages.
+=item l|lang:1        -- Language support
 
-=item  html_arrows:1     --  add left/right arrow navigation to html pages.
+=item pswp:1          -- PhotoSwipe support
 
-=item  html_resize:1     --  resizable images in html pages (default state of "size" button)
+=item quality=i       -- Jpeg quality for thumbnails (default 90)
+
+=item map_ref=s       -- Map link style (gmap, nakarte)
+
+=item map_zoom=i      -- Map link zoom (default 6)
+
+=item fig_lang=s      -- fig language
+
+=item fig_res=f       -- fig resolution
+
+=item html_charset=s  -- add meta charset tag in html pages (not in index html)
+
+=item html_viewport:1 -- add meta viewport tag in html pages (not in index html)
+
+=item html_screen_sw:1 -- add fit to screen switch to html pages
+
+=item html_arrows:1   -- add navigation (including left/right arrows) to html pages
+
+=item html_resize:1   -- resizable images in html pages (default state of "size" button)
 
 =back
 
