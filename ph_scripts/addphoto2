@@ -73,7 +73,7 @@ Getopt::Long::GetOptions(
   "html_pref=s"     => \$opts{html_pref},    # Image marks prefix (can and with /), empty for no marks
   "nohtml:1"        => \$opts{nohtml},       # Do not generate hmtl pages for images
   "mstyle=s"        => \$opts{mstyle},       # Mark style
-  "l|lang:1"        => \$opts{lang},         # Language support
+  "l|lang=s"        => \$opts{lang},         # Language (ru, en, select)
   "pswp:1"          => \$opts{pswp},         # PhotoSwipe support
   "quality=i"       => \$opts{quality},      # Jpeg quality for thumbnails (default 90)
   "map_ref=s"       => \$opts{map_ref},      # Map link style (gmap, nakarte)
@@ -343,9 +343,9 @@ my %msgs_en = (
 
 sub get_msg($){
   my $id = shift;
-  return "<div class=ru>$msgs_ru{$id}</div><div class=en>$msgs_en{$id}</div>"
-      if $opts{lang};
-  return $msgs_ru{$id};
+  return $msgs_ru{$id} if $opts{lang} eq 'ru';
+  return $msgs_en{$id} if $opts{lang} eq 'en';
+  return "<div class=ru>$msgs_ru{$id}</div><div class=en>$msgs_en{$id}</div>";
 }
 
 ## print latlon coords with or without referense to google/nakarte
