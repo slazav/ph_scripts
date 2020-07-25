@@ -3,10 +3,7 @@ datadir?=/usr/share
 INSTALL?=/usr/bin/install
 
 SCRIPTS=\
-  addphoto\
-  addphoto_img\
-  addphoto_cleanup\
-  addphoto_ini\
+  addphoto2\
   addphoto_mkfig\
   ph_addgeo\
   ph_resize
@@ -16,7 +13,6 @@ all:
 install:
 	mkdir -p -- "$(bindir)" "$(datadir)/perl5"
 	$(INSTALL) -Dpm 755 $(SCRIPTS) "$(bindir)"
-	$(INSTALL) -Dpm 644 addphoto.pm "$(datadir)/perl5"
 
 install-extra:
 	make -C extra install

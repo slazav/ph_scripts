@@ -2,7 +2,6 @@
 
 use strict;
 use warnings;
-use addphoto;
 use Getopt::Long qw(GetOptions);
 
 my $def_scale = '800:600:10000';
