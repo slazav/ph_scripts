@@ -36,6 +36,7 @@ my %opts = (
   html_resize      => 1,
   mstyle           => 'aa_gif',
   fig_res          => 14.2875, # convert pixel -> fig units
+  lang             => 'select',
 );
 my %re = (
  photo => '^\\\photo([lr]?)\s+(\S+)\s*(.*)',
