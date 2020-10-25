@@ -1431,7 +1431,7 @@ foreach(<IN>){
     print OUT "<img src='$th_file' alt='$ph->{atitle}'" .
               " width=$ph->{th1_w} height=$ph->{th1_h}".
               " class=addphoto-th></a>\n";
-    print OUT "<br><div class=addphoto-caption style='width:$ph->{th1_w}'>$ph->{title}</div>\n";
+    print OUT "<br><div class=addphoto-caption style='width:$ph->{th1_w}px'>$ph->{title}</div>\n";
     print OUT "</div>\n";
   }
   else{
