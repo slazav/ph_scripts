@@ -282,7 +282,8 @@ sub get_exif{
   $n='Exif.GPSInfo.GPSAltitude';
   if ((exists $exif->{$n}) && ($exif->{$n}=~/^(\d+)\/(\d+)/)){
     $alt = 1.0*$1/$2;
-    $alt=-$alt if (exists $exif->{$n.'Ref'}) && ($exif->{$n.'Ref'}!=0);
+    # $n.Ref can be 0, 1 (invert altitude), 220/100 (xiaomi phones)
+    $alt=-$alt if (exists $exif->{$n.'Ref'}) && ($exif->{$n.'Ref'} eq "1");
   }
   $n='Exif.GPSInfo.GPSLatitude';
   if ((exists $exif->{$n}) && ($exif->{$n}=~/^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(\d+)\/(\d+)/)){
