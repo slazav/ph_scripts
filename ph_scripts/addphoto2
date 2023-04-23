@@ -345,9 +345,10 @@ my %msgs_en = (
 
 sub get_msg($){
   my $id = shift;
+  return "<div class=ru>$msgs_ru{$id}</div><div class=en>$msgs_en{$id}</div>"
+    if $opts{lang} eq 'select';
   return $msgs_ru{$id} if $opts{lang} eq 'ru';
-  return $msgs_en{$id} if $opts{lang} eq 'en';
-  return "<div class=ru>$msgs_ru{$id}</div><div class=en>$msgs_en{$id}</div>";
+  return $msgs_en{$id};
 }
 
 ## print latlon coords with or without referense to google/nakarte
@@ -569,8 +570,11 @@ for (my $i=0; $i<@ph; $i++){
 
   # remove html tags from text, for html alt atribute
   $ph->{atitle} = $ph->{title};
+  $ph->{atitle}=~s|RUEN\(\s*\`(.*)\'\s*,\s*\`.*\'\)|$1|g;
   $ph->{atitle}=~s/<[^>]*>//g;
-  $ph->{atitle}=~s/[<>\']//g;
+  $ph->{atitle}=~s/[<>\']//g; #`
+
+  $ph->{title}=~s|RUEN\(\s*\`(.*)\'\s*,\s*\`(.*)\'\)|<span class=ru>$1</span><span class=en>$2</span>|g;
 
   my @files = @{$ph->{files}};
   foreach (@files) {die "error: can't find file: $_\n" unless -f "$imgdir$_";}
@@ -804,10 +808,10 @@ for (my $i=0; $i<@ph; $i++){
       <link href="$ph->{img2imgdir}addphoto.css" rel="stylesheet"/>*;
     $head .=qq*
       <script type='text/JavaScript' src='$ph->{img2imgdir}addphoto.js'></script>*
-      if $opts{lang} || $opts{html_screen_sw} || $ph->{use_mrk} || $opts{html_arrows};
+      if $opts{lang} eq 'select' || $opts{html_screen_sw} || $ph->{use_mrk} || $opts{html_arrows};
 
     # make language switch
-    if ($opts{lang}){
+    if ($opts{lang} eq 'select'){
       $init .= ' onload="lang_init()"';
       $top  .= qq*
         <div align=right>
@@ -1044,7 +1048,7 @@ print STY qq[
 close STY;
 
 if (!$opts{nohtml} && (
-      $opts{lang} ||
+      $opts{lang} eq 'select' ||
       $opts{html_screen_sw} ||
       $opts{_use_mrk} ||
       $opts{html_arrows} )) {
@@ -1053,9 +1057,32 @@ if (!$opts{nohtml} && (
 
   print JS qq*
     var langs=['ru', 'en'];
-    var lang_def='ru';
+    // get default language
+    function lang_def(){
+      lvars = [window.navigator.languages, window.navigator.language, window.navigator.userLanguage]
+      hasru = false;
+      for (const v of lvars) { hasru ||= v && v.includes("ru"); }
+      return hasru ? 'ru':'en';
+    }
+    // save language to storage/cookies
+    function lang_save(v){
+      // use storage
+      if (typeof(Storage) !== "undefined") {
+        localStorage.setItem("lang", v);
+      }
+    }
+    // load language from storage/cookies
+    function lang_load(v){
+      if (typeof(Storage) !== "undefined") {
+        v = localStorage.getItem("lang");
+        return v? v: lang_def();
+      } else {
+        return lang_def();
+      }
+    }
+    // set language from button
     function lang_set(lang){
-      document.cookie = "lang=" + lang + "; path=/";
+      lang_save(lang);
       for (var i=0; i<langs.length; i++){
         document.getElementById("lang_"+langs[i]).style.fontWeight=
           (langs[i]==lang) ? 'bold':'normal';
@@ -1064,19 +1091,13 @@ if (!$opts{nohtml} && (
           els[j].style.display = (langs[i]==lang) ? 'inline':'none'; }
       }
     }
-    // set language from document url
+    // set language after loading document
     function lang_init(){
-      var cookie = document.cookie;
-      var i1 = cookie.indexOf(" lang=");
-      if (i1 == -1) { i1 = cookie.indexOf("lang="); }
-      if (i1 == -1) {lang_set(lang_def);}
-      else {
-        i1 = cookie.indexOf("=", i1) + 1;
-        var i2 = cookie.indexOf(";", i1);
-        if (i2 == -1) { i2 = cookie.length; }
-        lang_set(cookie.substring(i1,i2));
-      }
-    }* if $opts{lang};
+      var urlParams = new URLSearchParams(window.location.search);
+      var l = urlParams.get('lang');
+      if (l==null) l=lang_load()
+      lang_set(l);
+    }* if $opts{lang} eq 'select';
 
   print JS qq*
     // switch image zoom
