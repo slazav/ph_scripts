@@ -1072,7 +1072,7 @@ if (!$opts{nohtml} && (
       }
     }
     // load language from storage/cookies
-    function lang_load(v){
+    function lang_load(){
       if (typeof(Storage) !== "undefined") {
         v = localStorage.getItem("lang");
         return v? v: lang_def();
@@ -1097,7 +1097,16 @@ if (!$opts{nohtml} && (
       var l = urlParams.get('lang');
       if (l==null) l=lang_load()
       lang_set(l);
-    }* if $opts{lang} eq 'select';
+    }
+    // switch language
+    function lang_sw(){
+      lang_set(lang_load()=='ru'? 'en':'ru');
+    }
+    // switch language with 't' key
+    function lang_key(event){
+      if (event.code == 'KeyT'){lang_sw();}
+    }
+    document.addEventListener('keydown', lang_key);* if $opts{lang} eq 'select';
 
   print JS qq*
     // switch image zoom
