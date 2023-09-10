@@ -323,24 +323,26 @@ my %msgs_ru = (
   dat_fmt  => 'Дата и время съемки:',
   alt_fmt  => 'Высота, м:',
   crd_fmt  => 'Координаты:',
-  pref     => '&lt;&lt; предыдущая',
-  uref     => 'к оглавлению',
-  nref     => 'следующая &gt;&gt;',
+  pref     => 'предыдущая (Ctrl-Left)',
+  uref     => 'к оглавлению (Esc)',
+  nref     => 'следующая (Ctrl-Right)',
   fullsize => 'полный размер',
-  sw_size  => 'размер',
-  sw_mark  => 'отметки',
+  sw_size  => 'размер (S or Left mouse button)',
+  sw_mark  => 'отметки (M or Enter)',
+  sw_lang  => 'язык (T)',
 );
 
 my %msgs_en = (
   dat_fmt  => 'Date and time:',
   alt_fmt  => 'Altitude, m:',
   crd_fmt  => 'Latitude and longitude:',
-  pref     => '&lt;&lt; prev.',
-  uref     => 'up',
-  nref     => 'next &gt;&gt;',
+  pref     => 'previous (Ctrl-Left)',
+  uref     => 'up (Esc)',
+  nref     => 'next (Ctrl-Right)',
   fullsize => 'full size',
-  sw_size  => 'size',
-  sw_mark  => 'marks',
+  sw_size  => 'size (S or Left mouse button)',
+  sw_mark  => 'marks (M or Enter)',
+  sw_lang  => 'language (T)',
 );
 
 sub get_msg($){
@@ -850,6 +852,13 @@ for (my $i=0; $i<@ph; $i++){
     $head .= qq*
     <link rel="next" href="$nurl">* if $nurl;
 
+    # switch language button
+#    if ($opts{lang} eq 'select'){
+#      my $msg = get_msg('sw_lang');
+#      $nav .= qq*
+#        <div class=addphoto-btn onclick="lang_sw()">$msg</div>*;
+#    }
+
     $nav .= "\n    <br>";
 
     # fit-to-screen button
@@ -870,6 +879,8 @@ for (my $i=0; $i<@ph; $i++){
       $nav .= qq*
         <div class=addphoto-btn onclick="switch_mrk()">$msg</div>*;
     }
+
+
     $top .= qq*
     <div class=addphoto-nav>$nav
     </div>*;
@@ -1142,19 +1153,22 @@ if (!$opts{nohtml} && (
       var rel = "";
       if (event.code == 'ArrowRight'){
         rel = "next";
-        if (cw+l < sw) return;
+        if (!event.ctrlKey && cw+l < sw) return;
       }
-      if (event.code == 'ArrowLeft'){
+      else if (event.code == 'ArrowLeft'){
         rel = "previous";
-        if (l > 0) return;
+        if (!event.ctrlKey && l > 0) return;
       }
-      if (event.code == 'Escape'){
+      else if (event.code == 'Escape'){
         rel = "top";
       }
-      if (event.code == 'Enter'){
+      else if (event.code == 'Enter'){
         switch_mrk();
       }
-      if (event.code == 'KeyS'){
+      else if (event.code == 'KeyM'){
+        switch_mrk();
+      }
+      else if (event.code == 'KeyS'){
         switch_scr();
       }
 
