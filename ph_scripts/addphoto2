@@ -327,8 +327,9 @@ my %msgs_ru = (
   uref     => 'к оглавлению (Esc)',
   nref     => 'следующая (Ctrl-Right)',
   fullsize => 'полный размер',
-  sw_size  => 'размер (S or Left mouse button)',
+  sw_size  => 'размер (S или левая кнопка мыши)',
   sw_mark  => 'отметки (M or Enter)',
+  sw_imgs  => 'картинки (I)',
   sw_lang  => 'язык (T)',
 );
 
@@ -342,6 +343,7 @@ my %msgs_en = (
   fullsize => 'full size',
   sw_size  => 'size (S or Left mouse button)',
   sw_mark  => 'marks (M or Enter)',
+  sw_imgs  => 'images (I)',
   sw_lang  => 'language (T)',
 );
 
@@ -873,6 +875,13 @@ for (my $i=0; $i<@ph; $i++){
           #addphoto-screen-sw { display: inline;} }];
     }
 
+    # switch images button
+    if ($#files>=0){
+      my $msg = get_msg('sw_imgs');
+      $nav .= qq*
+        <div class=addphoto-btn onclick="sw_imgs()">$msg</div>*;
+    }
+
     # switch marks button
     if ($ph->{use_mrk}){
       my $msg = get_msg('sw_mark');
@@ -890,14 +899,14 @@ for (my $i=0; $i<@ph; $i++){
 
     # main image
     my $main=qq*
-      <img id=image class=$img_class style='width:${w}px;height:auto;'
+      <img id=img0 class=$img_class style='width:${w}px;height:auto;'
            src='$imgref' alt='$ph->{atitle}' onclick='on_click(event)'>*;
 
     # marks overlay
     if ($ph->{use_mrk}){
       $main = qq*
       <div style="position: relative;" onclick='on_click(event)'>
-        <img id=image class=$img_class style='width:${w}px;height:auto;'
+        <img id=img0 class=$img_class style='width:${w}px;height:auto;'
              src='$imgref' alt='$ph->{atitle}'>
         <img id=marks class=$img_class style='width:${w}px;height:auto;'
              src='$ph->{mrkname}'>
@@ -914,20 +923,21 @@ for (my $i=0; $i<@ph; $i++){
           for (var i=1;i<$nn;i++){
             document.getElementById("img"+i).style.visibility=
               i<=nv?'visible':'hidden'}}
+        function sw_imgs_key(event){
+          if (event.code == 'KeyI'){ sw_imgs(); }}
+        document.addEventListener('keydown', sw_imgs_key);
       </script>*;
-      $sty .= qq*
-        #img0 { position: absolute; left: 0px; top: 0px; width: ${w}px; height: ${h}px; }*;
-
       $main = qq*
-      <div style="position: relative; height: ${h}px;"
-           onclick="sw_imgs();">
-        <img id="img0" src="$imgref" alt="$ph->{atitle}">*;
+      <div style="position: relative;" onclick='on_click(event)'>
+         <img id=img0 class=$img_class style='width:${w}px;height:auto;'
+              src='$imgref' alt='$ph->{atitle}'>*;
       for(my $i=1; $i<=$#files+1; $i++){
-        my ($d, $b, $e) = path_split($files[$i-1]);
         $sty .= qq*
-          #img$i { position: absolute; left: 0px; top: 0px; width: ${w}px; visibility: hidden; }*;
+           #img$i { position: absolute; left: 0px; top: 0px; visibility: hidden; }*;
+        my ($d, $b, $e) = path_split($files[$i-1]);
         $main .= qq*
-        <img id="img$i" src="$b$e" alt="$ph->{atitle}">*;
+          <img id="img$i" class=$img_class style='width:${w}px;height:auto;'
+             src='$b$e'>*;
       }
       $main .= qq*
       </div>*;
@@ -1122,12 +1132,11 @@ if (!$opts{nohtml} && (
   print JS qq*
     // switch image zoom
     function switch_scr(){
-      var image = document.getElementById("image");
-      if (!image) {return;}
-      var cn = (image.className=='img1' ? 'img2':'img1');
-      image.className = cn;
-      var marks = document.getElementById("marks");
-      if (marks) { marks.className = cn; }
+      // note that result of getElementsByClassName is HTMLcollection!
+      let i1 = Array.from(document.getElementsByClassName("img1"));
+      let i2 = Array.from(document.getElementsByClassName("img2"));
+      for (img of i1){ img.className = 'img2'; }
+      for (img of i2){ img.className = 'img1'; }
     }* if $opts{html_screen_sw};
 
   print JS qq*
@@ -1176,15 +1185,15 @@ if (!$opts{nohtml} && (
 
     function on_click(event){
       var image = document.getElementById("image");
-      var w1 = image.width;
-      var h1 = image.height;
+      var w1 = img0.width;
+      var h1 = img0.height;
       var xs = window.scrollX;
       var ys = window.scrollY;
-      var x0 = image.getBoundingClientRect().left + xs;
-      var y0 = image.getBoundingClientRect().top + ys;
+      var x0 = img0.getBoundingClientRect().left + xs;
+      var y0 = img0.getBoundingClientRect().top + ys;
       switch_scr();
-      var w2 = image.width;
-      var h2 = image.height;
+      var w2 = img0.width;
+      var h2 = img0.height;
       var kx = 1.0\*w2/w1;
       var ky = 1.0\*h2/h1;
       var xm  = event.clientX;
