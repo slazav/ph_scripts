@@ -1141,23 +1141,13 @@ if (!$opts{nohtml} && (
   print JS qq*
     // key navigation
     function process_key(event){
-      var l = document.documentElement.scrollLeft;
-      if (!l) l=document.body.scrollLeft;
-
-      var sw = document.documentElement.scrollWidth;
-      if (!sw) sw = document.body.scrollWidth;
-
-      var cw = document.documentElement.clientWidth;
-      if (!cw) cw = document.body.clientWidth;
 
       var rel = "";
-      if (event.code == 'ArrowRight'){
+      if (event.ctrlKey && event.code == 'ArrowRight'){
         rel = "next";
-        if (!event.ctrlKey && cw+l < sw) return;
       }
-      else if (event.code == 'ArrowLeft'){
+      else if (event.ctrlKey && event.code == 'ArrowLeft'){
         rel = "previous";
-        if (!event.ctrlKey && l > 0) return;
       }
       else if (event.code == 'Escape'){
         rel = "top";
