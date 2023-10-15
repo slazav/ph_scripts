@@ -37,6 +37,8 @@ my %opts = (
   mstyle           => 'aa_gif',
   fig_res          => 14.2875, # convert pixel -> fig units
   lang             => 'select',
+  ruen_q1          => '\`',
+  ruen_q2          => '\'',
 );
 my %re = (
  photo => '^\\\photo([lr]?)\s+(\S+)\s*(.*)',
@@ -571,14 +573,16 @@ if ($opts{cleanup}){
 print STDERR "[Updating files...]\n" if $opts{verbose};
 for (my $i=0; $i<@ph; $i++){
   my $ph = $ph[$i];
+  my $q1=$opts{ruen_q1};
+  my $q2=$opts{ruen_q2};
 
   # remove html tags from text, for html alt atribute
   $ph->{atitle} = $ph->{title};
-  $ph->{atitle}=~s|RUEN\(\s*\`(.*)\'\s*,\s*\`.*\'\)|$1|g;
+  $ph->{atitle}=~s|RUEN\(\s*$q1(.*)$q2\s*,\s*$q1.*$q2\)|$1|g;
   $ph->{atitle}=~s/<[^>]*>//g;
   $ph->{atitle}=~s/[<>\']//g; #`
 
-  $ph->{title}=~s|RUEN\(\s*\`(.*)\'\s*,\s*\`(.*)\'\)|<span class=ru>$1</span><span class=en>$2</span>|g;
+  $ph->{title}=~s|RUEN\(\s*$q1(.*)$q2\s*,\s*$q1(.*)$q2\)|<span class=ru>$1</span><span class=en>$2</span>|g;
 
   my @files = @{$ph->{files}};
   foreach (@files) {die "error: can't find file: $_\n" unless -f "$imgdir$_";}
