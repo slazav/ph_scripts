@@ -432,9 +432,8 @@ if ($opts{init} || $opts{init_only}){
   my $ww=0;  # current width
   my $od=''; # current date
 
-  my @list = $opts{init_tsort}? (sort {$files{$a}->{t} cmp $files{$b}->{t}} keys %files) :
-                                (sort keys %files);
-
+  my @list = (sort keys %files);
+  @list = sort {$files{$a}->{t} cmp $files{$b}->{t}} @list if $opts{init_tsort};
 
   print OUT "\\set imgdir $opts{imgdir}\n" if $opts{imgdir} ne '.';
   print OUT $opts{init_index_head};
