@@ -40,12 +40,6 @@ my %opts = (
   ruen_q1          => '\`',
   ruen_q2          => '\'',
 );
-my %re = (
- photo => '^\\\photo([lr]?)\s+(\S+)\s*(.*)',
- head  => '^\\\h([1-4])(r?)\s+(.*)',
- keep  => '^\\\keep\s+(.*)',
- set   => '^\\\set\s+(\S+)\s+(.*)',
-);
 Getopt::Long::Configure("no_ignore_case");
 Getopt::Long::GetOptions(
   "h|help"          => \$opts{help},         # print help message
@@ -93,7 +87,6 @@ Getopt::Long::GetOptions(
 ) or pod2usage(1);
 
 my $html_version = '2.3'; # changes when regenerating of html pages is needed
-
 
 pod2usage(-exitval => 0, -verbose => 2) if $opts{help};
 pod2usage(1) if @ARGV!=1;
@@ -235,22 +228,20 @@ sub fig_im_scale($$){
 
 
 ## create table of contents
-## input: array of hashes with fields 'depth' and 'title'
 sub html_toc($$){
   my $fh = shift;
-  my $hh = shift;
+  my $inp = shift;
   my $dp=0; # prev depth
   my $d0=0; # initial depth
-  for (my $i=0; $i<@{$hh}; $i++){
-    my $d=$hh->[$i]->{depth};
-    my $t=$hh->[$i]->{title};
-
-    if ($dp==$d0){
-      $dp=$d0=$d-1;
-    }
+  my $nh = 0;
+  foreach my $b (@{$inp}){
+    next unless $b->{type} eq 'head';
+    $nh++;
+    my ($d, $t) = ($b->{depth}, $b->{title});
+    if ($dp==$d0){ $dp=$d0=$d-1; }
     for (;$dp<$d;$dp++) {print $fh '  'x($dp-1) . "<ul>\n";}
     for (;$dp>$d;$dp--) {print $fh '  'x($dp-2) . "</ul>\n";}
-    print $fh '  'x($d-1) . "<li><a href=\"#h". ($i+1). "\">$t</a>\n";
+    print $fh '  'x($d-1) . "<li><a href=\"#h$nh\">$t</a>\n";
   }
   for (;$dp>$d0;$dp--) {print $fh '  'x($dp-2) . "</ul>\n";}
 }
@@ -483,7 +474,7 @@ sub read_file{
     last if /^\\end/;  # stop at \end command
     next if /^\\#/;    # skip comments
 
-    if (/$re{photo}/){     # images
+    if (/^\\photo([lr]?)\s+(\S+)\s*(.*)/){     # images
       my $al = ($1 eq 'r'?'right':($1 eq 'l'? 'left':'center'));
       my $name = $2;
       my $title = $3 || '';
@@ -496,7 +487,7 @@ sub read_file{
       next;
     }
 
-    if (/$re{head}/){  # headers
+    if (/^\\h([1-4])(r?)\s+(.*)/){  # headers
       push @ret, {type=>'head', depth=>$1, ruler=>($2 eq 'r'), title=>$3};
       next;
     }
@@ -506,12 +497,12 @@ sub read_file{
       next;
     }
 
-    if (/$re{keep}/){  # keep command
+    if (/^\\keep\s+(.*)/){  # keep command
       push @ret, {type=>'keep', globs=>[split('\s+', $1)]};
       next;
     }
 
-    if (/$re{set}/){  # set command
+    if (/^\\set\s+(\S+)\s+(.*)/){  # set command
       $opts{$1} = $2;
       next;
     }
@@ -536,12 +527,10 @@ sub read_file{
 
 my @inp = read_file($opts{infile});
 
-# make separate arrays of photos and headers
+# make separate array of photos
 my @ph;
-my @hh;
 foreach my $b (@inp){
   push @ph, $b if $b->{type} eq 'photo';
-  push @hh, $b if $b->{type} eq 'head';
 }
 
 # now all configuration should be read.
@@ -1582,7 +1571,7 @@ foreach my $b (@inp){
       next;
     }
     if ($b->{type} eq 'toc'){
-      html_toc(*OUT, \@hh);
+      html_toc(*OUT, \@inp);
       next;
     }
     if ($b->{type} eq 'text'){
