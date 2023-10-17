@@ -63,6 +63,8 @@ Getopt::Long::GetOptions(
   "init_img_mask=s" => \$opts{init_img_mask},      # init mode: mask for finding images
   "init_index_head=s"  => \$opts{init_index_head}, # init mode: head for the index file
   "init_index_tail=s"  => \$opts{init_index_tail}, # init mode: tail for the index file
+  "dump_opts:1"     => \$opts{dump_opts},    # DUMP options
+  "dump_inp:1"      => \$opts{dump_inp},     # DUMP input files
   "C|cleanup"       => \$opts{cleanup},      # CLEANUP MODE: remove unused files and exit
   "f|force:1"       => \$opts{force},        # cleanup mode: do not ask before deleting files
   "dryrun:1"        => \$opts{dryrun},       # cleanup mode: do not delete files
@@ -468,37 +470,79 @@ if ($opts{init} || $opts{init_only}){
 #################################################################
 ### Read index file, extract photo and header lists, set options.
 
-open IN, $opts{infile} or
-  die "can't open $opts{infile}: $!\n";
 
-my @ph;
-my @hh;
-my @keep;
-foreach(<IN>){
-  next unless /^\\/; # skip non-command lines
-  last if /^\\end/;  # stop at \end command
-  if (/$re{photo}/){     # images
-    my $al = ($1 eq 'r'?'right':($1 eq 'l'? 'left':'center'));
-    my $name = $2;
-    my $title = $3 || '';
-    if ($name=~m|^/| || $name=~m|^\.\.//| || $name=~m|/\.\./|){
-      warn "Skip image with non-relative path: $2\n";
+
+# read input file
+sub read_file{
+  my $fname = shift;
+  open IN, $fname or
+    die "can't open $fname: $!\n";
+  my @ret;
+
+  foreach(<IN>){
+    last if /^\\end/;  # stop at \end command
+    next if /^\\#/;    # skip comments
+
+    if (/$re{photo}/){     # images
+      my $al = ($1 eq 'r'?'right':($1 eq 'l'? 'left':'center'));
+      my $name = $2;
+      my $title = $3 || '';
+      if ($name=~m|^/| || $name=~m|^\.\.//| || $name=~m|/\.\./|){
+        warn "Skip image with non-relative path: $2\n";
+        next;
+      }
+      my @files = split(',', $name);
+      push @ret, {type=>'photo', files=>[@files], title=>$title, align=>$al};
       next;
     }
-    push @ph, {files=>[split(',', $name)], title=>$title, align=>$al};
+
+    if (/$re{head}/){  # headers
+      push @ret, {type=>'head', depth=>$1, ruler=>($2 eq 'r'), title=>$3};
+      next;
+    }
+
+    if (/^\\toc/){  # toc command
+      push @ret, {type=>'toc'};
+      next;
+    }
+
+    if (/$re{keep}/){  # keep command
+      push @ret, {type=>'keep', globs=>[split('\s+', $1)]};
+      next;
+    }
+
+    if (/$re{set}/){  # set command
+      $opts{$1} = $2;
+      next;
+    }
+
+    if (/^\\[^\\]/){
+      warn "warning: skipping unknown command: $_\n";
+      next;
+    }
+
+    s/^\\// if /^\\\\/; # remove quoted '\'
+
+    # add/append text block
+    if ($#ret>0 && $ret[$#ret]->{type} eq 'text') {
+      $ret[$#ret]->{text} .= $_;
+    }
+    else {
+      push @ret, {type=>'text', text=>$_};
+    }
   }
-  elsif (/$re{head}/){  # headers
-    my ($d, $t) = ($1, $3);
-    push @hh, {depth=>$d, title=>$t};
-  }
-  elsif (/$re{keep}/){  # keep command
-     push @keep, split('\s+', $1);
-  }
-  elsif (/$re{set}/){  # set command
-    $opts{$1} = $2;
-  }
+  return @ret;
 }
 
+my @inp = read_file($opts{infile});
+
+# make separate arrays of photos and headers
+my @ph;
+my @hh;
+foreach my $b (@inp){
+  push @ph, $b if $b->{type} eq 'photo';
+  push @hh, $b if $b->{type} eq 'head';
+}
 
 # now all configuration should be read.
 my $imgdir = "$opts{basedir}/$opts{imgdir}/";
@@ -506,31 +550,78 @@ $imgdir =~ s|^(\./)+||;
 
 #################################################################
 #################################################################
+# DUMP call - dump options, defs, parsed file and exit
+if ($opts{dump_opts}){
+  foreach my $k (keys %opts){
+    my $v = defined $opts{$k}? $opts{$k}: "undef";
+    print "$k: $v\n";
+  }
+  exit 0;
+}
+
+if ($opts{dump_inp}){
+  foreach my $b (@inp){
+    print "\\$b->{type}\n";
+    if ($b->{type} eq 'photo') {
+      print "  file: $_\n" foreach @{$b->{files}};
+      print "  title: $b->{title}\n";
+      print "  align: $b->{align}\n";
+      next;
+    }
+    if ($b->{type} eq 'head') {
+      print "  title: $b->{title}\n";
+      print "  depth: $b->{depth})\n";
+      next;
+    }
+    if ($b->{type} eq 'keep') {
+      print "  globs: $_\n" foreach @{$b->{globs}};
+      next;
+    }
+    if ($b->{type} eq 'text') {
+      print "  length: ", length($b->{text}), "\n";
+      next;
+    }
+  }
+  exit 0;
+}
+exit 0 if $opts{dump_opts} or $opts{dump_inp};
+
+
+#################################################################
+#################################################################
 # CLEANUP call - remove unused files and exit
 if ($opts{cleanup}){
   my %keep;
   print STDERR "[Cleanup mode...]\n" if $opts{verbose};
-  foreach my $ph (@ph) {
-    my @f = @{$ph->{files}};
-    # add all images
-    $keep{"$imgdir$_"} = 1 foreach (@f);
+  foreach my $b (@inp) {
+    if ($b->{type} eq 'photo'){
+      my @f = @{$b->{files}};
+      # add all images
+      $keep{"$imgdir$_"} = 1 foreach (@f);
 
-    my ($d, $b, $e) = path_split($f[0]);
-    # add html and thumbnail for this image
-    $keep{"$imgdir$d$b.htm"} = 1;
-    $keep{"$imgdir$d$opts{th1_pref}$b$e"} = 1 if $opts{th1_pref};
-    $keep{"$imgdir$d$opts{th2_pref}$b$e"} = 1 if $opts{th2_pref};
-    $keep{"$imgdir$d$opts{html_pref}$b.htm"} = 1 unless $opts{nohtml};
-    # add mark files
-    if ( -f "$imgdir$d$b.fig"){
-      $keep{"$imgdir$d$b.fig"} = 1;
-      $keep{"$imgdir$d$opts{mark_pref}$b.gif"} = 1 if $opts{th1_pref};
+      my ($d, $b, $e) = path_split($f[0]);
+      # add html and thumbnail for this image
+      $keep{"$imgdir$d$b.htm"} = 1;
+      $keep{"$imgdir$d$opts{th1_pref}$b$e"} = 1 if $opts{th1_pref};
+      $keep{"$imgdir$d$opts{th2_pref}$b$e"} = 1 if $opts{th2_pref};
+      $keep{"$imgdir$d$opts{html_pref}$b.htm"} = 1 unless $opts{nohtml};
+      # add mark files
+      if ( -f "$imgdir$d$b.fig"){
+        $keep{"$imgdir$d$b.fig"} = 1;
+        $keep{"$imgdir$d$opts{mark_pref}$b.gif"} = 1 if $opts{th1_pref};
+      }
+      next;
+    }
+
+    # add files from \keep commands
+    if ($b->{type} eq 'keep'){
+      foreach my $k (@{$b->{globs}}) {
+        $keep{$_} = 1 foreach (glob "$imgdir$k");
+      }
+      next;
     }
   }
-  # add files from \keep commands
-  foreach my $k (@keep) {
-    $keep{$_} = 1 foreach (glob "$imgdir$k");
-  }
+
   # add index file if needed
   $keep{$opts{infile}} = 1 if $opts{imgdir} eq '.';
   $keep{"$opts{basedir}/$opts{html}"} = 1 if $opts{imgdir} eq '.';
@@ -1214,7 +1305,6 @@ if (!$opts{nohtml} && (
 #################################################################
 #################################################################
 ### create index html
-seek IN, 0, 0;
 my $in_row=0;
 my $np=0;
 my $nh=0;
@@ -1433,32 +1523,32 @@ addphoto_parse_hash();
 *;
 }
 
-foreach(<IN>){
-  if (/$re{photo}/){ # \photo commands
-    my $ph = $ph[$np++];
-    my ($img, $title) = (${$ph[$np-1]->{files}}[0], $ph[$np-1]->{title});
+foreach my $b (@inp){
+  if ($b->{type} eq 'photo') {
+    $np++;
+    my ($img, $title) = (${$b->{files}}[0], $b->{title});
 
     write_pswp_data(*OUT) if $np==1 && $opts{pswp};
 
     # paths from html index
-    my $htm2img = $htm2imgdir . $ph->{imgdir2img};
-    my $imgfile = $htm2img . $ph->{imgname};
-    my $htmfile = $htm2img . $ph->{htmname};
-    my $th1file = $htm2img . $ph->{th1name};
-    my $th2file = $htm2img . $ph->{th2name};
-    my $mrkfile = $htm2img . $ph->{mrkname};
+    my $htm2img = $htm2imgdir . $b->{imgdir2img};
+    my $imgfile = $htm2img . $b->{imgname};
+    my $htmfile = $htm2img . $b->{htmname};
+    my $th1file = $htm2img . $b->{th1name};
+    my $th2file = $htm2img . $b->{th2name};
+    my $mrkfile = $htm2img . $b->{mrkname};
     # what to use in the index:
-    my $th_file = $ph->{use_th1} ? $th1file : ($ph->{use_th2} ? $th2file : $imgfile);
+    my $th_file = $b->{use_th1} ? $th1file : ($b->{use_th2} ? $th2file : $imgfile);
 
     # get size of small thumbnail (it can be missing if use_th1==0!)
-    unless ($ph->{th1_w} && $ph->{th1_h}) {
+    unless ($b->{th1_w} && $b->{th1_h}) {
       my $ret;
-      ($ret, $ph->{th1_w}, $ph->{th1_h}) =
-      split(/\s+/, `ph_resize --scale "$opts{th1_size}" --dryrun --printres "$ph->{imgpath}" /dev/null`);
+      ($ret, $b->{th1_w}, $b->{th1_h}) =
+      split(/\s+/, `ph_resize --scale "$opts{th1_size}" --dryrun --printres "$b->{imgpath}" /dev/null`);
     }
 
     # open a row only if align = center
-    if ($ph->{align} eq 'center') {
+    if ($b->{align} eq 'center') {
       print OUT "<div class=addphoto-row>\n" unless $in_row;
       $in_row=1;
     } else {
@@ -1474,30 +1564,31 @@ foreach(<IN>){
       $a_attrs .= " onclick='addphoto_open_pswp($np, this)'";
     }
 
-    print OUT "<div class=addphoto-img-$ph->{align}><a$a_attrs>\n";
-    print OUT "<img src='$th_file' alt='$ph->{atitle}'" .
-              " width=$ph->{th1_w} height=$ph->{th1_h}".
+    print OUT "<div class=addphoto-img-$b->{align}><a$a_attrs>\n";
+    print OUT "<img src='$th_file' alt='$b->{atitle}'" .
+              " width=$b->{th1_w} height=$b->{th1_h}".
               " class=addphoto-th></a>\n";
-    print OUT "<br><div class=addphoto-caption style='width:$ph->{th1_w}px'>$ph->{title}</div>\n";
+    print OUT "<br><div class=addphoto-caption style='width:$b->{th1_w}px'>$b->{title}</div>\n";
     print OUT "</div>\n";
   }
   else{
     print OUT "</div>\n" if $in_row; # close row
     $in_row=0;
-    if (/$re{head}/){ # \h commands
+    if ($b->{type} eq 'head'){ # \h commands
       $nh++;
-      my ($depth, $title) = ($hh[$nh-1]->{depth}, $hh[$nh-1]->{title});
-      print OUT ($2 eq 'r'?'<hr>':'') .
-        "<a name='h" . $nh . "'></a><h$depth>$title</h$1>\n";
+      my ($depth, $title, $ruler) = ($b->{depth}, $b->{title}, $b->{ruler});
+      print OUT ($ruler?'<hr>':'') .
+        "<a name='h" . $nh . "'></a><h$depth>$title</h$depth>\n";
+      next;
     }
-    elsif (/^\\toc/){ html_toc(*OUT, \@hh); }
-    elsif (/^\\end/){ last; }
-    elsif (/^\\\\/){ s/^\\//; print OUT $_; }
-    elsif (/^\\#/){}    # skip comments
-    elsif (/^\\keep/){} # skip keep commands
-    elsif (/^\\set/){}  # skip set command
-    elsif (/^\\/){ warn "warning: skipping unknown command: $_\n"; }
-    else{ print OUT $_; }
+    if ($b->{type} eq 'toc'){
+      html_toc(*OUT, \@hh);
+      next;
+    }
+    if ($b->{type} eq 'text'){
+      print OUT $b->{text};
+      next;
+    }
   }
 }
 print OUT "</div>\n" if $in_row; # close row
