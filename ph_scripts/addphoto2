@@ -230,11 +230,11 @@ sub fig_im_scale($$){
 ## create table of contents
 sub html_toc($$){
   my $fh = shift;
-  my $inp = shift;
+  my $data = shift;
   my $dp=0; # prev depth
   my $d0=0; # initial depth
   my $nh = 0;
-  foreach my $b (@{$inp}){
+  foreach my $b (@{$data}){
     next unless $b->{type} eq 'head';
     $nh++;
     my ($d, $t) = ($b->{depth}, $b->{title});
@@ -462,17 +462,24 @@ if ($opts{init} || $opts{init_only}){
 ### Read index file, extract photo and header lists, set options.
 
 
+sub read_file($$$$);
 
 # read input file
-sub read_file{
+sub read_file($$$$){
   my $fname = shift;
+  my $data  = shift;
+  my $defs  = shift;
+  my $opts  = shift;
   open IN, $fname or
     die "can't open $fname: $!\n";
-  my @ret;
 
   foreach(<IN>){
     last if /^\\end/;  # stop at \end command
     next if /^\\#/;    # skip comments
+
+    foreach my $k (keys %{$defs}){
+      s/\$\{$k\}/$defs->{$k}/g;
+    }
 
     if (/^\\photo([lr]?)\s+(\S+)\s*(.*)/){     # images
       my $al = ($1 eq 'r'?'right':($1 eq 'l'? 'left':'center'));
@@ -483,27 +490,37 @@ sub read_file{
         next;
       }
       my @files = split(',', $name);
-      push @ret, {type=>'photo', files=>[@files], title=>$title, align=>$al};
+      push @{$data}, {type=>'photo', files=>[@files], title=>$title, align=>$al};
       next;
     }
 
     if (/^\\h([1-4])(r?)\s+(.*)/){  # headers
-      push @ret, {type=>'head', depth=>$1, ruler=>($2 eq 'r'), title=>$3};
+      push @{$data}, {type=>'head', depth=>$1, ruler=>($2 eq 'r'), title=>$3};
       next;
     }
 
     if (/^\\toc/){  # toc command
-      push @ret, {type=>'toc'};
+      push @{$data}, {type=>'toc'};
       next;
     }
 
     if (/^\\keep\s+(.*)/){  # keep command
-      push @ret, {type=>'keep', globs=>[split('\s+', $1)]};
+      push @{$data}, {type=>'keep', globs=>[split('\s+', $1)]};
       next;
     }
 
     if (/^\\set\s+(\S+)\s+(.*)/){  # set command
-      $opts{$1} = $2;
+      $opts->{$1} = $2;
+      next;
+    }
+
+    if (/^\\def\s+(\S+)\s+(.*)/){  # def command
+      $defs->{$1} = $2;
+      next;
+    }
+
+    if (/^\\inc\s+(\S+)/){  # inc command
+      read_file($1, $data, $defs, $opts);
       next;
     }
 
@@ -515,21 +532,22 @@ sub read_file{
     s/^\\// if /^\\\\/; # remove quoted '\'
 
     # add/append text block
-    if ($#ret>0 && $ret[$#ret]->{type} eq 'text') {
-      $ret[$#ret]->{text} .= $_;
+    if ($#{$data}>0 && $data->[$#{$data}]->{type} eq 'text') {
+      $data->[$#{$data}]->{text} .= $_;
     }
     else {
-      push @ret, {type=>'text', text=>$_};
+      push @{$data}, {type=>'text', text=>$_};
     }
   }
-  return @ret;
 }
 
-my @inp = read_file($opts{infile});
+my %defs;
+my @data;
+read_file($opts{infile}, \@data, \%defs, \%opts);
 
 # make separate array of photos
 my @ph;
-foreach my $b (@inp){
+foreach my $b (@data){
   push @ph, $b if $b->{type} eq 'photo';
 }
 
@@ -549,7 +567,7 @@ if ($opts{dump_opts}){
 }
 
 if ($opts{dump_inp}){
-  foreach my $b (@inp){
+  foreach my $b (@data){
     print "\\$b->{type}\n";
     if ($b->{type} eq 'photo') {
       print "  file: $_\n" foreach @{$b->{files}};
@@ -582,7 +600,7 @@ exit 0 if $opts{dump_opts} or $opts{dump_inp};
 if ($opts{cleanup}){
   my %keep;
   print STDERR "[Cleanup mode...]\n" if $opts{verbose};
-  foreach my $b (@inp) {
+  foreach my $b (@data) {
     if ($b->{type} eq 'photo'){
       my @f = @{$b->{files}};
       # add all images
@@ -1512,7 +1530,7 @@ addphoto_parse_hash();
 *;
 }
 
-foreach my $b (@inp){
+foreach my $b (@data){
   if ($b->{type} eq 'photo') {
     $np++;
     my ($img, $title) = (${$b->{files}}[0], $b->{title});
@@ -1571,7 +1589,7 @@ foreach my $b (@inp){
       next;
     }
     if ($b->{type} eq 'toc'){
-      html_toc(*OUT, \@inp);
+      html_toc(*OUT, \@data);
       next;
     }
     if ($b->{type} eq 'text'){
