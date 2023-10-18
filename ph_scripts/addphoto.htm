@@ -167,15 +167,27 @@ exiv2, ImageMagick (convert, identify). Если планируется использовать
 альбома от устаревших файлов (addphoto_cleanup). В обычном режиме эта
 строка игнорируется.
 
-<li><b>\set<i>&lt;name&gt;</i> <i>&lt;text&gt;</i></b>
+<li><b>\set <i>&lt;name&gt;</i> <i>&lt;text&gt;</i></b>
 <p>Изменить параметр.
 
-<li><b>\def<i>&lt;name&gt;</i> <i>&lt;text&gt;</i></b>
+<li><b>\def <i>&lt;name&gt;</i> <i>&lt;text&gt;</i></b>
 <p>Определить переменную. Все дальнейшие вхождения ${&lt;name&gt;}
 будут заменены на &lt;text&gt;.
 
-<li><b>\inc<i>&lt;file name&gt;</i></b>
+<li><b>\inc <i>&lt;file name&gt;</i></b>
 <p>Прочитать и включить указанный файл.
+
+<li><b>\ifdef <i>&lt;var_name&gt;</i> <i>&lt;text&gt;</i></b>
+Вставить текст, если переменная var_name определена.
+
+<li><b>\ifndef <i>&lt;var_name&gt;</i> <i>&lt;text&gt;</i></b>
+Вставить текст, если переменная var_name не пределена.
+
+<li><b>\ifeq <i>&lt;word1&gt;</i> <i>&lt;word2&gt;</i> <i>&lt;text&gt;</i></b>
+Вставить текст, если слова word1 и word2 (без пробелов) одинаковые.
+
+<li><b>\ifneq <i>&lt;word1&gt;</i> <i>&lt;word2&gt;</i> <i>&lt;text&gt;</i></b>
+Вставить текст, если слова word1 и word2 (без пробелов) разные.
 
 </ul>
 

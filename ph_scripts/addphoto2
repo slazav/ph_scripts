@@ -519,6 +519,26 @@ sub read_file($$$$){
       next;
     }
 
+    if (/^\\ifdef\s+(\S+)\s+(.*)/){  # ifdef command
+      if (exists $defs->{$1}){ $_="$2\n"; }
+      else { next; }
+    }
+
+    if (/^\\ifndef\s+(\S+)\s+(.*)/){  # ifndef command
+      unless (exists $defs->{$1}){ $_="$2\n"; }
+      else { next; }
+    }
+
+    if (/^\\ifeq\s+(\S+)\s+(\S+)\s+(.*)/){  # ifndef command
+      if ($1 eq $2){ $_="$3\n"; }
+      else { next; }
+    }
+
+    if (/^\\ifneq\s+(\S+)\s+(\S+)\s+(.*)/){  # ifndef command
+      if ($1 ne $2){ $_="$3\n"; }
+      else { next; }
+    }
+
     if (/^\\inc\s+(\S+)/){  # inc command
       read_file($1, $data, $defs, $opts);
       next;
