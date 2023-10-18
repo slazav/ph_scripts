@@ -58,6 +58,7 @@ Getopt::Long::GetOptions(
   "init_index_head=s"  => \$opts{init_index_head}, # init mode: head for the index file
   "init_index_tail=s"  => \$opts{init_index_tail}, # init mode: tail for the index file
   "dump_opts:1"     => \$opts{dump_opts},    # DUMP options
+  "dump_defs:1"     => \$opts{dump_defs},    # DUMP definitions
   "dump_inp:1"      => \$opts{dump_inp},     # DUMP input files
   "C|cleanup"       => \$opts{cleanup},      # CLEANUP MODE: remove unused files and exit
   "f|force:1"       => \$opts{force},        # cleanup mode: do not ask before deleting files
@@ -590,6 +591,14 @@ $imgdir =~ s|^(\./)+||;
 if ($opts{dump_opts}){
   foreach my $k (keys %opts){
     my $v = defined $opts{$k}? $opts{$k}: "undef";
+    print "$k: $v\n";
+  }
+  exit 0;
+}
+
+if ($opts{dump_defs}){
+  foreach my $k (keys %defs){
+    my $v = defined $defs{$k}? $defs{$k}: "undef";
     print "$k: $v\n";
   }
   exit 0;
