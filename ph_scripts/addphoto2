@@ -473,7 +473,16 @@ sub read_file($$$$){
   open IN, $fname or
     die "can't open $fname: $!\n";
 
+  my $buf = '';
   foreach(<IN>){
+
+    #joining lines
+    if (/(.*)\\$/) { $buf .= $1; next; }
+    if ($buf){
+      $_ = $buf . $_;
+      $buf = '';
+    }
+
     last if /^\\end/;  # stop at \end command
     next if /^\\#/;    # skip comments
 
