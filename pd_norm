@@ -4,6 +4,7 @@
 
 count=0
 # convert names to lowercase
+echo "1. convert names"
 for i in $(find . -maxdepth 1 -name '*.JPG' -or -name '*.jpg'); do
   i="${i#./}"
   chmod 644 "$i"
@@ -36,6 +37,11 @@ done
 [ "$count" != 0 ] || { printf "No jpeg files found!\n"; exit 1; }
 echo "$count jpeg files found"
 
-# autorotate photos
-exifautotran *.jpg
+# rescale images
+echo "2. rescale to 2048x1536px"
+ph_resize -v -i -S 1536:1536:20000 *.jpg
 
+# autorotate photos
+echo "3. autorotate"
+exifautotran *.jpg
+exiv2 -M 'del Exif.Image.Orientation' *.jpg

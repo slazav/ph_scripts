@@ -1,0 +1,53 @@
+#!/usr/bin/perl -w
+
+### read GPS data from JPGs and pront to stdout
+
+### Data example for my sony camera
+# Exif.Image.GPSTag                            Long        1  31628
+# Exif.GPSInfo.GPSVersionID                    Byte        4  2 3 0 0
+# Exif.GPSInfo.GPSLatitudeRef                  Ascii       2  N
+# Exif.GPSInfo.GPSLatitude                     Rational    3  78/1 34/1 19421/1000
+# Exif.GPSInfo.GPSLongitudeRef                 Ascii       2  E
+# Exif.GPSInfo.GPSLongitude                    Rational    3  17/1 20/1 9881/1000
+# Exif.GPSInfo.GPSAltitudeRef                  Byte        1  0
+# Exif.GPSInfo.GPSAltitude                     Rational    1  37550/100
+# Exif.GPSInfo.GPSTimeStamp                    Rational    3  16/1 8/1 51000/1000
+# Exif.GPSInfo.GPSStatus                       Ascii       2  A
+# Exif.GPSInfo.GPSMeasureMode                  Ascii       2  3
+# Exif.GPSInfo.GPSDOP                          Rational    1  22000/10000
+# Exif.GPSInfo.GPSSpeedRef                     Ascii       2  K
+# Exif.GPSInfo.GPSSpeed                        Rational    1  460/1000
+# Exif.GPSInfo.GPSTrackRef                     Ascii       2  T
+# Exif.GPSInfo.GPSTrack                        Rational    1  3409/100
+# Exif.GPSInfo.GPSMapDatum                     Ascii       7  WGS-84
+# Exif.GPSInfo.GPSDateStamp                    Ascii      11  2018:05:04
+# Exif.GPSInfo.GPSDifferential                 Short       1  0
+
+
+my @files = @ARGV;
+foreach my $f (@files){
+  next unless -f $f;
+  my ($x,$y,$z, $xref, $yref, $zref);
+  foreach (`exiv2 -p e -g GPS "$f"` ) {
+    my ($name, $type, $n, @v) = split /\s+/;
+    my $v = join ' ', @v;
+
+    $xref = $v if ($name eq 'Exif.GPSInfo.GPSLongitudeRef');
+    $yref = $v if ($name eq 'Exif.GPSInfo.GPSLatitudeRef');
+    $zref = $v if ($name eq 'Exif.GPSInfo.GPSAltitudeRef');
+
+    $x = $v if ($name eq 'Exif.GPSInfo.GPSLongitude');
+    $y = $v if ($name eq 'Exif.GPSInfo.GPSLatitude');
+    $z = $v if ($name eq 'Exif.GPSInfo.GPSAltitude');
+  }
+  next unless $x && $y && $z && $xref && $yref;
+  $x = $1/$2 + $3/$4/60.0 + $5/$6/3600.0  if $x =~ m|(\d+)/(\d+)\s+(\d+)/(\d+)\s+(\d+)/(\d+)|;
+  $y = $1/$2 + $3/$4/60.0 + $5/$6/3600.0  if $y =~ m|(\d+)/(\d+)\s+(\d+)/(\d+)\s+(\d+)/(\d+)|;
+  $z = $1/$2  if $z =~ m|(\d+)/(\d+)|;
+
+  $x=-$x if $xref ne 'E';
+  $y=-$y if $yref ne 'N';
+
+  printf "%s  %.8f %.8f %.2f\n", $f, $y,$x,$z;
+
+}

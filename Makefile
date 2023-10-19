@@ -1,17 +1,17 @@
 bindir?=/usr/bin
-datadir?=/usr/share
 INSTALL?=/usr/bin/install
 
 SCRIPTS=\
-  addphoto2\
-  addphoto_mkfig\
   ph_addgeo\
-  ph_resize
+  ph_savegeo\
+  pd_arc\
+  pd_norm\
+
 
 all:
 
 install:
-	mkdir -p -- "$(bindir)" "$(datadir)/perl5"
+	mkdir -p -- "$(bindir)"
 	$(INSTALL) -Dpm 755 $(SCRIPTS) "$(bindir)"
 
 install-extra:
